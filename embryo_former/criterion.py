@@ -58,7 +58,6 @@ class SetCriterion(nn.Module):
     def get_frame_refine_prediction(self, outputs, targets, pos_weight=None, is_training=True):
         frame_logits = outputs['refine_weight_attn']
         B, L, C = frame_logits.shape
-        
         pred_width = None 
         if is_training:
             pred_width = torch.stack([t['boxes_width'] for t in targets])
