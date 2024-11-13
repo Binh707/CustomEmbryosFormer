@@ -69,7 +69,7 @@ class EmbryoFormer(nn.Module):
         # self.count_head = nn.Linear(hidden_dim, opt.max_eseq_length + 1)
         self.bbox_head = MLP(hidden_dim, hidden_dim, 2, 3)
         
-        self.bbox_width_head = MLP(hidden_dim, hidden_dim, 1, 3)
+        # self.bbox_width_head = MLP(hidden_dim, hidden_dim, 1, 3)
         self.frame_head = nn.Linear(hidden_dim, num_classes)
         self.bbox_width_softmax = nn.Softmax(dim=1)
 
@@ -89,14 +89,14 @@ class EmbryoFormer(nn.Module):
         if with_box_refine:
             self.class_head = _get_clones(self.class_head, num_pred)
             self.bbox_head = _get_clones(self.bbox_head, num_pred)
-            self.bbox_width_head = _get_clones(self.bbox_width_head, num_pred)
+            # self.bbox_width_head = _get_clones(self.bbox_width_head, num_pred)
             nn.init.constant_(self.bbox_head[0].layers[-1].bias.data[1:], -2)
             self.transformer.decoder.bbox_head = self.bbox_head
         else:
             nn.init.constant_(self.bbox_head.layers[-1].bias.data[1:], -2)
             self.class_head = nn.ModuleList([self.class_head for _ in range(num_pred)])
             self.bbox_head = nn.ModuleList([self.bbox_head for _ in range(num_pred)])
-            self.bbox_width_head = nn.ModuleList([self.bbox_width_head for _ in range(num_pred)])
+            # self.bbox_width_head = nn.ModuleList([self.bbox_width_head for _ in range(num_pred)])
             self.transformer.decoder.bbox_head = None
 
         self.translator = translator
