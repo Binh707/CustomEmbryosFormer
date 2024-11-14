@@ -184,7 +184,7 @@ class DeformableTransformerDecoder(nn.Module):
 
     def forward(self, tgt, reference_points, src, src_temporal_shapes, 
                 src_level_start_index, src_valid_ratios,
-                query_pos=None, src_padding_mask=None, query_padding_mask=None, disable_iterative_refine=False):
+                query_pos=None, src_padding_mask=None, query_padding_mask=None):
         """_summary_
 
         Args:
@@ -227,6 +227,7 @@ class DeformableTransformerDecoder(nn.Module):
 
             # ------------------ Iterative Bounding Box refinement ------------------
             # hack implementation for iterative bounding box refinement
+            disable_iterative_refine = False
             if disable_iterative_refine:
                 reference_points = reference_points
             else:

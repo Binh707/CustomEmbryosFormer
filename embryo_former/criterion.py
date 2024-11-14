@@ -84,7 +84,7 @@ class SetCriterion(nn.Module):
         if B > 1:
             pred_center  = torch.cumsum(pred_width, 1) - pred_width/2
         else:
-            pred_center = torch.cumsum(pred_width, 0) - pred_width/2
+            pred_center = torch.cumsum(pred_width, 1) - pred_width/2
 
         flat_pred_center = pred_center.unsqueeze(1).expand(B, L, C)
         flat_width_center = pred_width.unsqueeze(1).expand(B, L, C)
