@@ -160,7 +160,7 @@ class EmbryoFormer(nn.Module):
         hs, inter_references = self.transformer.forward_decoder(
                                 tgt, reference_points, memory, temporal_shapes,
                                 level_start_index, valid_ratios, query_embed,
-                                mask_flatten, proposals_mask, disable_iterative_refine
+                                mask_flatten, proposals_mask
                             )
 
         ### Collaborative head
