@@ -143,9 +143,6 @@ class EmbryoFormer(nn.Module):
         query_embed = self.query_embed.weight
         proposals_mask = torch.ones(N, query_embed.shape[0], device=query_embed.device).bool()
         init_reference, tgt, reference_points, query_embed = self.transformer.prepare_decoder_input_query(memory, query_embed)
-        B, Nq, dq = query_embed.shape
-        query_pe = get_query_positional_emb(Nq, dq, B)
-        tgt = tgt + query_pe.to(query_embed.device)
 
         hs, inter_references = self.transformer.forward_decoder(
                                 tgt, reference_points, memory, temporal_shapes,
@@ -155,15 +152,21 @@ class EmbryoFormer(nn.Module):
 
         others = {
             'memory': memory,
-            'frame_preds': frame_preds,
             'mask_flatten': mask_flatten,
             'spatial_shapes': temporal_shapes,
             'level_start_index': level_start_index,
             'valid_ratios': valid_ratios,
             'proposals_mask': proposals_mask,
         }
+        if eval_mode:
+            pass
+            # out, loss = self.parallel_prediction_full(dt, criterion, hs, init_reference, inter_references, others,
+            #                                           disable_iterative_refine)
+        else:
+            out, loss = self.parallel_prediction_matched(dt, criterion, hs, init_reference, inter_references, others,
+                                                         disable_iterative_refine)
 
-        out, loss = self.predict(dt, hs, init_reference, inter_references, others, criterion, disable_iterative_refine, eval_mode)
+        # out, loss = self.predict(dt, hs, init_reference, inter_references, others, criterion, disable_iterative_refine, eval_mode)
         return out, loss
 
 
@@ -172,21 +175,28 @@ class EmbryoFormer(nn.Module):
         outputs_class0 = counter(hs_lid_pool)
         return outputs_class0
 
-    
-    def predict(self, dt, hs, init_reference, inter_references, others, criterion, disable_iterative_refine, eval_mode=False):
+
+    def parallel_prediction_matched(self, dt, criterion, hs, init_reference, inter_references, others,
+                                    disable_iterative_refine):
         outputs_classes = []
+        outputs_counts = []
         outputs_coords = []
-        outputs_widths = []
-        outputs_centers = []
+        # outputs_cap_costs = []
+        # outputs_cap_losses = []
+        # outputs_cap_probs = []
+        # outputs_cap_seqs = []
 
         num_pred = hs.shape[0]
-
         for l_id in range(num_pred):
             hs_lid = hs[l_id]
-            reference = init_reference if l_id == 0 else inter_references[l_id - 1]  # [decoder_layer, batch, query_num, ...]
+            reference = init_reference if l_id == 0 else inter_references[
+                l_id - 1]  # [decoder_layer, batch, query_num, ...]
             outputs_class = self.class_head[l_id](hs_lid)  # [bs, num_query, N_class]
+            outputs_count = self.predict_event_num(self.count_head[l_id], hs_lid)
             tmp = self.bbox_head[l_id](hs_lid)  # [bs, num_query, 2]
- 
+
+            # cost_caption, loss_caption, cap_probs, seq = self.caption_prediction(self.caption_head[l_id], dt, hs_lid,
+            #                                                                      reference, others, 'none')
             if disable_iterative_refine:
                 outputs_coord = reference
             else:
@@ -196,41 +206,65 @@ class EmbryoFormer(nn.Module):
                 else:
                     assert reference.shape[-1] == 1
                     tmp[..., :1] += reference
-                outputs_coord = tmp.sigmoid()  # [bs, num_query, 4]
+                outputs_coord = tmp.sigmoid()  # [bs, num_query, 2]
 
-            tmp_ref = inverse_sigmoid(outputs_coord)
-            output_center, output_width = torch.split(tmp_ref, [1, 1], dim=-1)
-            tmp_width = self.bbox_width_softmax(output_width)
-
-            outputs_widths.append(tmp_width)
             outputs_classes.append(outputs_class)
+            outputs_counts.append(outputs_count)
             outputs_coords.append(outputs_coord)
-            outputs_centers.append(output_center.sigmoid())
-        
+            # outputs_cap_losses.append(cap_loss)
+            # outputs_cap_probs.append(cap_probs)
+            # outputs_cap_seqs.append(seq)
+
         outputs_class = torch.stack(outputs_classes)  # [decoder_layer, bs, num_query, N_class]
-        outputs_coord = torch.stack(outputs_coords) 
-        outputs_width = torch.stack(outputs_widths)
+        outputs_count = torch.stack(outputs_counts)
+        outputs_coord = torch.stack(outputs_coords)  # [decoder_layer, bs, num_query, 4]
+        # outputs_cap_loss = torch.stack(outputs_cap_losses)
 
         all_out = {
             'pred_logits': outputs_class,
+            'pred_count': outputs_count,
             'pred_boxes': outputs_coord,
-            'pred_width': outputs_width,
-            'pred_center': outputs_centers,
-        }
+            # 'caption_losses': outputs_cap_loss,
+            # 'caption_probs': outputs_cap_probs,
+            # 'seq': outputs_cap_seqs
+            }
         out = {k: v[-1] for k, v in all_out.items()}
-        out['pred_frames'] = others['frame_preds']
-        out['query_feats'] = hs
-        
 
         if self.aux_loss:
             ks, vs = list(zip(*(all_out.items())))
             out['aux_outputs'] = [{ks[i]: vs[i][j] for i in range(len(ks))} for j in range(num_pred - 1)]
             loss, last_indices, aux_indices = criterion(out, dt['video_target'])
+
+            # for l_id in range(hs.shape[0]):
+            #     hs_lid = hs[l_id]
+            #     reference = init_reference if l_id == 0 else inter_references[l_id - 1]
+            #     indices = last_indices[0] if l_id == hs.shape[0] - 1 else aux_indices[l_id][0]
+            #     cap_loss, cap_probs, seq = self.caption_prediction(self.caption_head[l_id], dt, hs_lid, reference,
+            #                                                        others, self.opt.caption_decoder_type, indices)
+
+            #     l_dict = {'loss_caption': cap_loss}
+            #     if l_id != hs.shape[0] - 1:
+            #         l_dict = {k + f'_{l_id}': v for k, v in l_dict.items()}
+            #     loss.update(l_dict)
+
+            # out.update({'caption_probs': cap_probs, 'seq': seq})
         else:
             loss, last_indices = criterion(out, dt['video_target'])
 
-        return out, loss
+            # l_id = hs.shape[0] - 1
+            # reference = inter_references[l_id - 1]  # [decoder_layer, batch, query_num, ...]
+            # hs_lid = hs[l_id]
+            # indices = last_indices[0]
+            # cap_loss, cap_probs, seq = self.caption_prediction(self.caption_head[l_id], dt, hs_lid, reference,
+            #                                                    others, self.opt.caption_decoder_type, indices)
+            # l_dict = {'loss_caption': cap_loss}
+            # loss.update(l_dict)
 
+            # out.pop('caption_losses')
+            # out.pop('caption_costs')
+            # out.update({'caption_probs': cap_probs, 'seq': seq})
+
+        return out, loss
 
 #=========================================================================================================
 
