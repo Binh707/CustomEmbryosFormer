@@ -170,13 +170,13 @@ def main(opt, config_path: str):
                   
             frame_labels = [sample['frame_labels'] for sample in dt['video_target']]
             frame_preds = output['pred_frames']
-            frame_refine_preds = output['pred_frames_refine']
+            # frame_refine_preds = output['pred_frames_refine']
             B, L, C = frame_preds.shape
 
             # Evaluate Refine Frame classification
             for metric in refine_frame_metrics:
                 for b_id in range(B):
-                    vid_preds = frame_refine_preds[b_id][:int(orig_target_sizes[b_id])]
+                    vid_preds = frame_preds[b_id][:int(orig_target_sizes[b_id])]
                     vid_gts = frame_labels[b_id]
                     refine_frame_metrics[metric].update(vid_preds, vid_gts, is_prob=True)
 
@@ -219,14 +219,14 @@ def main(opt, config_path: str):
 
             frame_labels = [sample['frame_labels'] for sample in dt['video_target']]
             frame_preds = output['pred_frames']
-            frame_refine_preds = output['pred_frames_refine']
+            # frame_refine_preds = output['pred_frames_refine']
             
             B, L, C = frame_preds.shape
 
             # Evaluate Refine Frame classification
             for metric in refine_frame_metrics:
                 for b_id in range(B):
-                    vid_preds = frame_refine_preds[b_id][:int(orig_target_sizes[b_id])]
+                    vid_preds = frame_preds[b_id][:int(orig_target_sizes[b_id])]
                     vid_gts = frame_labels[b_id]
                     refine_frame_metrics[metric].update(vid_preds, vid_gts, is_prob=True)
 
