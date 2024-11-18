@@ -91,12 +91,14 @@ class EmbryoFormer(nn.Module):
         
         if with_box_refine:
             self.class_head = _get_clones(self.class_head, num_pred)
+            self.count_head = _get_clones(self.count_head, num_pred)
             self.bbox_head = _get_clones(self.bbox_head, num_pred)
             nn.init.constant_(self.bbox_head[0].layers[-1].bias.data[1:], -2)
             self.transformer.decoder.bbox_head = self.bbox_head
         else:
             nn.init.constant_(self.bbox_head.layers[-1].bias.data[1:], -2)
             self.class_head = nn.ModuleList([self.class_head for _ in range(num_pred)])
+            self.count_head = nn.ModuleList([self.count_head for _ in range(num_pred)])
             self.bbox_head = nn.ModuleList([self.bbox_head for _ in range(num_pred)])
             self.transformer.decoder.bbox_head = None
 
