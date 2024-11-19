@@ -24,7 +24,7 @@ from .transformer_utils import (
     MLP,
     RefineTransformerDecoderLayer, RefineTransformerDecoder
 )
-
+from .matcher import build_matcher
 
 def _get_clones(module, N):
     return nn.ModuleList([copy.deepcopy(module) for i in range(N)])
@@ -291,6 +291,7 @@ def build(args):
         opt=args
     )
     weight_dict = args.weight_dict
+    matcher = build_matcher(args)
 
     if args.aux_loss:
         aux_weight_dict = {}
@@ -301,10 +302,8 @@ def build(args):
     losses = args.losses
     aux_losses = args.aux_losses
 
-    # criterion = SetCriterion(args.num_classes, weight_dict, losses, aux_losses, opt=args)
     criterion = SetCriterion(args.num_classes, matcher, weight_dict, losses, focal_alpha=args.focal_alpha,
                              focal_gamma=args.focal_gamma, opt=args)
     criterion.to(device)
-
     return model, criterion
 
