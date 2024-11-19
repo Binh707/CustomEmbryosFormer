@@ -29,18 +29,17 @@ def collate_fn(batch):
     video_length = torch.FloatTensor(batch_size, 3).zero_()  # true length, sequence length
     video_mask = torch.BoolTensor(batch_size, max_video_length).zero_()
 
-    max_caption_num = len(labels[0])
+    max_timestamp_num = max(len(x) for x in gt_timestamps_list)
 
     # lnt_boxes_tensor = torch.zeros(batch_size, max_proposal_num, 4)
-    gt_boxes_tensor = torch.zeros(batch_size, max_caption_num, 2)
-    gt_boxWidth_tensor = torch.zeros(batch_size, max_caption_num)
+    gt_boxes_tensor = torch.zeros(batch_size, max_timestamp_num, 2)
+    gt_boxWidth_tensor = torch.zeros(batch_size, max_timestamp_num)
 
     total_caption_idx = 0
     total_proposal_idx = 0
 
     for idx in range(batch_size):
         video_len = feature_list[idx].shape[0]
-        # proposal_length = len(timestamps_list[idx])
         gt_proposal_length = len(gt_timestamps_list[idx]) # n snippets in video[idx]
         
         video_tensor[idx, :video_len, :] = torch.from_numpy(feature_list[idx])
