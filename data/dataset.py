@@ -19,8 +19,7 @@ def collate_fn(batch):
     batch_size = len(batch)
     feature_size = batch[0][0].shape[1]
 
-    feature_list, gt_timestamps_list, labels, frame_labels, list_frames, gt_raw_timestamp, raw_duration, key = zip(*batch)
-    # C, H, W = list_frames[0][0].shape
+    feature_list, gt_timestamps_list, labels, frame_labels, gt_raw_timestamp, raw_duration, key = zip(*batch)
     max_video_length = max([x.shape[0] for x in feature_list])
 
     gt_timestamps = list(chain(*gt_timestamps_list))
@@ -119,17 +118,19 @@ class StageDataset(Dataset):
     def __len__(self):
         return len(self.keys)
 
-    def process_time_step(self, duration, timestamps_list, feature_length):
+    def process_time_step(self, duration, timestamps_list):
         duration = np.array(duration)
         timestamps = np.array(timestamps_list)
         feature_length = np.array(feature_length)
-        featstamps = feature_length * timestamps / duration
-        featstamps = np.minimum(featstamps, feature_length - 1).astype('int')
+        featstamps = duration * timestamps / duration
+        featstamps = np.minimum(featstamps, duration - 1).astype('int')
         featstamps = np.maximum(featstamps, 0).astype('int')
         return featstamps.tolist()
 
     def __getitem__(self, idx):
         raise NotImplementedError()
+
+
 
 
 class PropSeqDataset(StageDataset):
@@ -139,65 +140,49 @@ class PropSeqDataset(StageDataset):
     def load_feats(self, key):
         vid_feat = np.load(self.anno[key]['feat_path'])
         return vid_feat
-        
-    def random_split(self, time_stamps, duration):
-        random_ids = []
-        new_timestamps = []
-        min_cut = int(duration*0.1)
 
-        for stamp in time_stamps:
-            start, end = stamp 
-            stamp_len = end-start +1
-            stamp_ids = list(range(start, end+1, 1))
-            
-            if stamp_len < min_cut:
-                choose_ids = stamp_ids
-            else:
-                choose_ids = np.random.choice(
-                    stamp_ids, random.randrange(min_cut, len(stamp_ids)+1), replace=False
-                )
-            
-            random_ids.extend(choose_ids)
-            if len(new_timestamps) == 0:
-                new_timestamps.append([0, len(choose_ids)-1])
-            else:
-                new_timestamps.append([new_timestamps[-1][1]+1, new_timestamps[-1][1] + len(choose_ids)])
-
-        random_ids = np.sort(random_ids)
-        assert new_timestamps[-1][1] == len(random_ids)-1, 'Wrong split'
-        
-        return random_ids, new_timestamps
 
     def get_frame_position_weights(self):
         pass 
+
+
+    def monotoric2free(self, action_labels, gt_timestamps):
+        free_gt_timestamps = []
+        free_action_labels = []
+        for timestamp in gt_timestamps:
+            start_pos, end_pos = timestamp
+            if end_pos > start_pos:
+                free_gt_timestamps.append(timestamp)
+                free_action_labels.append(1)
+        return free_action_labels, free_gt_timestamps
+
 
     def __getitem__(self, idx):
         key = str(self.keys[idx])
         feats = self.load_feats(key) # [L, d]
         duration = self.anno[key]['duration']
-        gt_timestamps = self.anno[key]['timestamps']  # [gt_num, 2], e.g: [[0, 0.5]], len = num_stages
+        gt_timestamps = self.anno[key]['timestamps']  # [gt_num, 2]
         
-        action_labels = self.anno[key].get('action_labels', [0] * len(gt_timestamps)) # ==> stage label
+        action_labels = self.anno[key].get('action_labels', [0] * len(gt_timestamps)) # stage label
         frame_labels = self.anno[key]['frame_labels'] # len = L
         frame_paths = self.anno[key]['frame_paths'] # len = L
-        L = len(frame_paths)
 
-        list_imgs = []
+        action_labels, gt_timestamps = self.monotoric2free(action_labels, gt_timestamps)
+        random_ids = np.random.choice(list(range(len(gt_timestamps))), len(gt_timestamps), replace=False)
+        gt_timestamps = [gt_timestamps[_] for _ in range(len(gt_timestamps)) if _ in random_ids]
+        action_labels = [action_labels[_] for _ in range(len(action_labels)) if _ in random_ids]
+
         assert max(action_labels) <= self.opt.num_classes
 
-        random_ids = None
-        if self.is_training and self.opt.random_split:
-            random_ids, gt_timestamps = self.random_split(gt_timestamps, duration)
-        else:
-            random_ids = list(range(duration))
+        fil_fr_ids = list(range(duration))
+        frame_labels = [frame_labels[i] for i in fil_fr_ids]
+        frame_paths = [frame_paths[i] for i in fil_fr_ids]
+        feats = np.stack([feats[i] for i in fil_fr_ids], axis=0)
 
-        frame_labels = [frame_labels[i] for i in random_ids]
-        frame_paths = [frame_paths[i] for i in random_ids]
-        feats = np.stack([feats[i] for i in random_ids], axis=0)
-        duration = L = len(frame_labels)
+        gt_featstamps = self.process_time_step(duration, gt_timestamps)
+        return feats, gt_featstamps, action_labels, frame_labels, gt_timestamps, duration, key
 
-        gt_featstamps = self.process_time_step(duration, gt_timestamps, L)
-        return feats, gt_featstamps, action_labels, frame_labels, list_imgs, gt_timestamps, duration, key
+
 
 
 # ------------------------------------ UTILS ------------------------------------

@@ -301,7 +301,9 @@ def build(args):
     losses = args.losses
     aux_losses = args.aux_losses
 
-    criterion = SetCriterion(args.num_classes, weight_dict, losses, aux_losses, opt=args)
+    # criterion = SetCriterion(args.num_classes, weight_dict, losses, aux_losses, opt=args)
+    criterion = SetCriterion(args.num_classes, matcher, weight_dict, losses, focal_alpha=args.focal_alpha,
+                             focal_gamma=args.focal_gamma, opt=args)
     criterion.to(device)
 
     return model, criterion
