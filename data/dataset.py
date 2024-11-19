@@ -121,7 +121,7 @@ class StageDataset(Dataset):
     def process_time_step(self, duration, timestamps_list):
         duration = np.array(duration)
         timestamps = np.array(timestamps_list)
-        feature_length = np.array(feature_length)
+        # feature_length = np.array(feature_length)
         featstamps = duration * timestamps / duration
         featstamps = np.minimum(featstamps, duration - 1).astype('int')
         featstamps = np.maximum(featstamps, 0).astype('int')
