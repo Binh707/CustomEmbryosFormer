@@ -233,6 +233,7 @@ def cross_entropy_with_gaussian_mask(inputs, targets, opt, weight):
     return loss.mean()
 
 
+
 def sigmoid_focal_loss(inputs, targets, num_boxes, alpha: float = 0.25, gamma: float = 2):
     """
     Loss used in RetinaNet for dense detection: https://arxiv.org/abs/1708.02002.
@@ -250,8 +251,12 @@ def sigmoid_focal_loss(inputs, targets, num_boxes, alpha: float = 0.25, gamma: f
         Loss tensor
     """
 
-    prob = inputs.sigmoid()
-    ce_loss = F.binary_cross_entropy_with_logits(inputs, targets, reduction="none")
+    # prob = inputs.sigmoid()
+    prob = F.softmax(inputs, dim=-1)
+
+    # ce_loss = F.binary_cross_entropy_with_logits(inputs, targets, reduction="none")
+    ce_loss = F.cross_entropy(inputs, targets, reduction="none")
+
     p_t = prob * targets + (1 - prob) * (1 - targets)
     loss = ce_loss * ((1 - p_t) ** gamma)
 
