@@ -107,7 +107,6 @@ def main(opt, config_path: str):
     
     weight_dict = criterion.weight_dict
     n_epochs = opt.epoch
-    total_loss = AverageMeter()
     
     refine_frame_metrics = create_dict_metrics(opt.num_classes)
     center_metrics = create_dict_metrics(opt.num_classes)
@@ -139,7 +138,10 @@ def main(opt, config_path: str):
         for loss in loss_manager:
             loss_manager[loss].reset()
 
-        # -------------------- TRAIN --------------------
+
+
+
+        # -------------------- TRAINING --------------------
         model.train()
         criterion.training=True
         for batch_id, dt in tqdm(enumerate(train_loader)):
@@ -152,50 +154,45 @@ def main(opt, config_path: str):
             orig_target_sizes = dt['video_length'][:, 1]
             
             optimizer.zero_grad()
-
             output, loss = model(dt, criterion)
-            for k in loss:
-                loss_manager[k].update(loss[k].item())
 
-            # HARDCODE
-            # if e < opt.learning_rate_decay_every:
-            #     weight_dict['loss_refine_frame'] = 0 
-            # else:
-            #     weight_dict['loss_refine_frame'] = 1.0
+            for k in loss:
+                loss_manager[k].update(loss[k].item()) 
             final_loss = sum(loss[k] * weight_dict[k] for k in loss.keys() if k in weight_dict)
             final_loss.backward()
-
             torch.nn.utils.clip_grad_norm_(model.parameters(), opt.grad_clip)
             optimizer.step()
                   
-            frame_labels = [sample['frame_labels'] for sample in dt['video_target']]
-            frame_preds = output['pred_frames']
-            # frame_refine_preds = output['pred_frames_refine']
-            B, L, C = frame_preds.shape
 
-            # Evaluate Refine Frame classification
-            for metric in refine_frame_metrics:
-                for b_id in range(B):
-                    vid_preds = frame_preds[b_id][:int(orig_target_sizes[b_id])]
-                    vid_gts = frame_labels[b_id]
-                    refine_frame_metrics[metric].update(vid_preds, vid_gts, is_prob=True)
+            # frame_labels = [sample['frame_labels'] for sample in dt['video_target']]
+            # frame_preds = output['pred_frames'] 
+            # B, L, C = frame_preds.shape
 
-        print_str = (f'---- Epoch {e}/{n_epochs} ----\nTRAIN\ntotal loss: {total_loss.avg:.4f}, ' + f"center acc: {center_scores['accuracy'].avg}, ")
-        print_str += '\n'
+            # # Evaluate Refine Frame classification
+            # for metric in refine_frame_metrics:
+            #     for b_id in range(B):
+            #         vid_preds = frame_preds[b_id][:int(orig_target_sizes[b_id])]
+            #         vid_gts = frame_labels[b_id]
+            #         refine_frame_metrics[metric].update(vid_preds, vid_gts, is_prob=True)
+        # print_str = (f'---- Epoch {e}/{n_epochs} ----\nTRAIN\ntotal loss: {total_loss.avg:.4f}, ' + f"center acc: {center_scores['accuracy'].avg}, ")
+
+        print_str = (f'---- Epoch {e}/{n_epochs} ----\nTRAIN\n')
         logger.info(print_str)
-        print_metrics_frames(
-            metric_dict={
-                'Refine': refine_frame_metrics, 
-            }, 
-            n_classes = opt.num_classes, 
-            logger = logger
-        )
+        # print_metrics_frames(
+        #     metric_dict={
+        #         'Refine': refine_frame_metrics, 
+        #     }, 
+        #     n_classes = opt.num_classes, 
+        #     logger = logger
+        # )
 
         loss_str = [f'{loss}: {loss_manager[loss].avg:.4f}' for loss in loss_manager if criterion.weight_dict[loss] > 0]
         loss_str = ', '.join(loss_str)
         logger.info(loss_str)
 
-        # -------------------- VAL --------------------
+
+
+        # -------------------- VALIDATION --------------------
         model.eval()
         criterion.training=False
         for metric in refine_frame_metrics:
@@ -217,77 +214,75 @@ def main(opt, config_path: str):
             for k in loss:
                 loss_manager[k].update(loss[k].item())
 
-            frame_labels = [sample['frame_labels'] for sample in dt['video_target']]
-            frame_preds = output['pred_frames']
-            # frame_refine_preds = output['pred_frames_refine']
-            
-            B, L, C = frame_preds.shape
+            # frame_labels = [sample['frame_labels'] for sample in dt['video_target']]
+            # frame_preds = output['pred_frames']
+            # B, L, C = frame_preds.shape
 
-            # Evaluate Refine Frame classification
-            for metric in refine_frame_metrics:
-                for b_id in range(B):
-                    vid_preds = frame_preds[b_id][:int(orig_target_sizes[b_id])]
-                    vid_gts = frame_labels[b_id]
-                    refine_frame_metrics[metric].update(vid_preds, vid_gts, is_prob=True)
+            # # Evaluate Refine Frame classification
+            # for metric in refine_frame_metrics:
+            #     for b_id in range(B):
+            #         vid_preds = frame_preds[b_id][:int(orig_target_sizes[b_id])]
+            #         vid_gts = frame_labels[b_id]
+            #         refine_frame_metrics[metric].update(vid_preds, vid_gts, is_prob=True)
 
         print_str = '\nVALIDATION:'
         logger.info(print_str)
-        print_metrics_frames(
-            metric_dict={
-                'Refine': refine_frame_metrics, 
-            }, 
-            n_classes = opt.num_classes,
-            logger = logger
-        )
+        # print_metrics_frames(
+        #     metric_dict={
+        #         'Refine': refine_frame_metrics, 
+        #     }, 
+        #     n_classes = opt.num_classes,
+        #     logger = logger
+        # )
 
         loss_str = [f'{loss}: {loss_manager[loss].avg:.4f}' for loss in loss_manager if criterion.weight_dict[loss] > 0]
         loss_str = ', '.join(loss_str)
         logger.info(loss_str)
 
-        cur_refine_acc = refine_frame_metrics['accuracy'].value()
-        cur_refine_f1 = refine_frame_metrics['f1'].value()
+        # cur_refine_acc = refine_frame_metrics['accuracy'].value()
+        # cur_refine_f1 = refine_frame_metrics['f1'].value()
         
         logger.info(f'\n')
 
-        if weight_dict['loss_refine_frame'] > 0:
-            if cur_refine_acc > best_refine_acc:
-                logger.info(f"Ref-acc improves from {best_refine_acc:.4f} to {cur_refine_acc:.4f}")
-                best_refine_acc = cur_refine_acc
-                data = {
-                    'epoch': e,
-                    'model': model.state_dict(),
-                    'optimizer': optimizer.state_dict(),
-                    'best_acc': best_refine_acc
-                }
-                save_path = osp.join(SAVE_DIR, f'model_best_refine-acc.pth')
-                torch.save(data, save_path)
-            else:
-                logger.info(f'Ref-acc does not improve, cur acc: {cur_refine_acc:.4f}, best acc: {best_refine_acc:.4f}')
+        # if weight_dict['loss_refine_frame'] > 0:
+        #     if cur_refine_acc > best_refine_acc:
+        #         logger.info(f"Ref-acc improves from {best_refine_acc:.4f} to {cur_refine_acc:.4f}")
+        #         best_refine_acc = cur_refine_acc
+        #         data = {
+        #             'epoch': e,
+        #             'model': model.state_dict(),
+        #             'optimizer': optimizer.state_dict(),
+        #             'best_acc': best_refine_acc
+        #         }
+        #         save_path = osp.join(SAVE_DIR, f'model_best_refine-acc.pth')
+        #         torch.save(data, save_path)
+        #     else:
+        #         logger.info(f'Ref-acc does not improve, cur acc: {cur_refine_acc:.4f}, best acc: {best_refine_acc:.4f}')
 
-            if cur_refine_f1 > best_refine_f1:
-                logger.info(f"Ref-f1 improves from {best_refine_f1:.4f} to {cur_refine_f1:.4f}")
-                best_refine_f1 = cur_refine_f1
-                data = {
-                    'epoch': e,
-                    'model': model.state_dict(),
-                    'optimizer': optimizer.state_dict(),
-                    'best_acc': best_refine_f1
-                }
-                save_path = osp.join(SAVE_DIR, f'model_best_refine-f1.pth')
-                torch.save(data, save_path)
-            else:
-                logger.info(f'Ref-f1 does not improve, cur f1: {cur_refine_f1:.4f}, best f1: {best_refine_f1:.4f}')
+        #     if cur_refine_f1 > best_refine_f1:
+        #         logger.info(f"Ref-f1 improves from {best_refine_f1:.4f} to {cur_refine_f1:.4f}")
+        #         best_refine_f1 = cur_refine_f1
+        #         data = {
+        #             'epoch': e,
+        #             'model': model.state_dict(),
+        #             'optimizer': optimizer.state_dict(),
+        #             'best_acc': best_refine_f1
+        #         }
+        #         save_path = osp.join(SAVE_DIR, f'model_best_refine-f1.pth')
+        #         torch.save(data, save_path)
+        #     else:
+        #         logger.info(f'Ref-f1 does not improve, cur f1: {cur_refine_f1:.4f}, best f1: {best_refine_f1:.4f}')
 
             
-        lr_scheduler.step()
+        lr_scheduler.step() 
     
-    data = {
-        'model': model.state_dict(),
-        'optimizer': optimizer.state_dict(),
-        'best_refine_acc': best_refine_acc,
-        'best_refine_f1': best_refine_f1,
-    }
-    save_path = osp.join(SAVE_DIR, f'model_last.pth')
+    # data = {
+    #     'model': model.state_dict(),
+    #     'optimizer': optimizer.state_dict(),
+    #     'best_refine_acc': best_refine_acc,
+    #     'best_refine_f1': best_refine_f1,
+    # }
+    # save_path = osp.join(SAVE_DIR, f'model_last.pth')
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
