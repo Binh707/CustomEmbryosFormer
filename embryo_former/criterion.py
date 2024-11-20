@@ -142,18 +142,6 @@ class SetCriterion(nn.Module):
         src_idx = torch.cat([src for (src, _) in indices])
         return batch_idx, src_idx
 
-    # def _get_exclude_src_permutation_idx(self, indices):
-    #     exclude_indices = []
-    #     for src, _ in indices:
-    #         tmp = torch.zeros((self.opt.num_queries,), dtype=torch.int64)
-    #         tmp[src] = 1
-    #         exclude_indices += torch.nonzero(tmp==0, as_tuple=False)
-
-    #     # permute predictions following indices
-    #     batch_idx = torch.cat([torch.full_like(src, i) for i, (src, _) in enumerate(indices)])
-    #     src_idx = torch.cat([src for (src, _) in indices])
-    #     return batch_idx, src_idx
-
 
     def _get_tgt_permutation_idx(self, indices):
         # permute targets following indices
@@ -260,13 +248,11 @@ def sigmoid_focal_loss(inputs, targets, num_boxes, alpha: float = 0.25, gamma: f
         Loss tensor
     """
 
-    # prob = inputs.sigmoid()
     prob = F.softmax(inputs, dim=-1)
+    B, L, C = inputs.shape
+    ce_loss = F.cross_entropy(inputs.flatten(0, 1), targets.flatten(0, 1), reduction="none").view(B, L, -1)
+    p_t = torch.sum(prob * targets, dim=-1).unsqueeze(-1)
 
-    # ce_loss = F.binary_cross_entropy_with_logits(inputs, targets, reduction="none")
-    ce_loss = F.cross_entropy(inputs, targets, reduction="none")
-
-    p_t = prob * targets + (1 - prob) * (1 - targets)
     loss = ce_loss * ((1 - p_t) ** gamma)
 
     if alpha >= 0:
