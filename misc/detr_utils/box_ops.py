@@ -2,50 +2,9 @@
 """
 Utilities for bounding box manipulation and GIoU.
 """
-import numpy as np
-import math
 import torch
 from torchvision.ops.boxes import box_area
 
-def box_width_to_xy(x, orig_target_sizes):
-    w = x.squeeze(-1)
-    N_boxes = w.shape[1] # = N_class
-    
-    batch_boxes = []
-    for i, width in enumerate(x):
-        list_boxes =[ [0, width[0].item()] ] 
-        for i in range(1, N_boxes):
-            cur_right = list_boxes[-1][1] + width[i].item()
-            list_boxes.append([list_boxes[-1][1], min(cur_right, 1)])
-        list_boxes = torch.tensor(list_boxes)
-        batch_boxes.append(list_boxes)
-    batch_boxes = torch.stack(batch_boxes)
-
-    scale_fct = torch.stack([orig_target_sizes, orig_target_sizes], dim=1).cpu()
-    batch_boxes = batch_boxes * scale_fct[:, None, :]
-    return batch_boxes
-
-def convert_to_frame_pred(pred_boxes, batch_lens):
-    """
-    Args:
-        pred_boxes (_type_): converted boxes from  output['pred_width'], 
-                                use the above box_width_to_xy function
-    Returns:
-        _type_: _description_
-    """
-    B, N_classes, _ = pred_boxes.shape
-    batch_preds = []
-    for i in range(B):
-        L = int(batch_lens[i].item())
-        vid_preds = np.zeros(L)
-        for class_id, box in enumerate(pred_boxes[i]):
-            vid_preds[math.floor(box[0]): math.ceil(box[1])] = class_id
-        batch_preds.append(torch.tensor(vid_preds))
-    
-    return batch_preds
-
-
-# ---- AUTHOR ------
 def box_cl_to_xy(x):
     c, l = x.unbind(-1)
     b = [c - 0.5 * l, c + 0.5 * l]
@@ -86,9 +45,4 @@ def generalized_box_iou(boxes1, boxes2):
     rb = torch.max(boxes1[:, None, 1], boxes2[:, 1])
     area = (rb - lt).clamp(min=0)  # [N,M,2]
     giou = iou - (area - union) / (area + 1e-5)
-    return giou, iou
-
-def batch_box_giou(batch_boxes1, batch_boxes2):
-    # batch_boxes shape: [B, N_box, 2]
-    
-    pass
+    return giou
