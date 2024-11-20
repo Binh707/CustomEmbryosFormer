@@ -176,7 +176,7 @@ class EmbryoFormer(nn.Module):
         return outputs_class0
 
 
-def parallel_prediction_full(self, dt, criterion, hs, init_reference, inter_references, others,
+    def parallel_prediction_full(self, dt, criterion, hs, init_reference, inter_references, others,
                                  disable_iterative_refine): 
         outputs_classes = []
         outputs_classes0 = []
