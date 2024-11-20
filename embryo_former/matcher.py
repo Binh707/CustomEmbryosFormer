@@ -42,6 +42,7 @@ class HungarianMatcher(nn.Module):
         self.cost_class = cost_class
         self.cost_bbox = cost_bbox
         self.cost_giou = cost_giou
+        # self.cost_caption = cost_caption
         self.cost_alpha = cost_alpha
         self.cost_gamma = cost_gamma
 
@@ -53,12 +54,12 @@ class HungarianMatcher(nn.Module):
         Params:
             outputs: This is a dict that contains at least these entries:
                  "pred_logits": Tensor of dim [batch_size, num_queries, num_classes] with the classification logits
-                 "pred_boxes": Tensor of dim [batch_size, num_queries, 4] with the predicted box coordinates
+                 "pred_boxes": Tensor of dim [batch_size, num_queries, 2] with the predicted box coordinates
 
             targets: This is a list of targets (len(targets) = batch_size), where each target is a dict containing:
                  "labels": Tensor of dim [num_target_boxes] (where num_target_boxes is the number of ground-truth
                            objects in the target) containing the class labels
-                 "boxes": Tensor of dim [num_target_boxes, 4] containing the target box coordinates
+                 "boxes": Tensor of dim [num_target_boxes, 2] containing the target box coordinates
 
         Returns:
             A list of size batch_size, containing tuples of (index_i, index_j) where:
@@ -72,7 +73,7 @@ class HungarianMatcher(nn.Module):
 
             # We flatten to compute the cost matrices in a batch
             out_prob = outputs["pred_logits"].flatten(0, 1).sigmoid()
-            out_bbox = outputs["pred_boxes"].flatten(0, 1)  # [batch_size * num_queries, 4]
+            out_bbox = outputs["pred_boxes"].flatten(0, 1)
 
             # Also concat the target labels and boxes
             tgt_ids = torch.cat([v["labels"] for v in targets])
@@ -90,9 +91,9 @@ class HungarianMatcher(nn.Module):
             cost_bbox = torch.cdist(out_bbox, tgt_bbox, p=1)
 
             # Compute the giou cost betwen boxes
-            iou, giou = generalized_box_iou(box_cl_to_xy(out_bbox), box_cl_to_xy(tgt_bbox))
+            cost_giou = -generalized_box_iou(box_cl_to_xy(out_bbox),
+                                             box_cl_to_xy(tgt_bbox))
 
-            cost_giou = -giou
             # cost_caption = outputs['caption_costs'].flatten(0, 1)
 
             # Final cost matrix
