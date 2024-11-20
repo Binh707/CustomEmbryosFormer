@@ -176,7 +176,7 @@ def main(opt, config_path: str):
             #         refine_frame_metrics[metric].update(vid_preds, vid_gts, is_prob=True)
         # print_str = (f'---- Epoch {e}/{n_epochs} ----\nTRAIN\ntotal loss: {total_loss.avg:.4f}, ' + f"center acc: {center_scores['accuracy'].avg}, ")
 
-        print_str = (f'---- Epoch {e}/{n_epochs} ----\nTRAIN')
+        print_str = (f'-------------------- Epoch {e}/{n_epochs} ----------------------\nTRAIN')
         logger.info(print_str)
         # print_metrics_frames(
         #     metric_dict={
