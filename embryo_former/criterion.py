@@ -61,10 +61,15 @@ class SetCriterion(nn.Module):
         target_classes = torch.full(src_logits.shape[:2], self.num_classes,
                                     dtype=torch.int64, device=src_logits.device)
         target_classes[idx] = target_classes_o
-
         target_classes_onehot = torch.zeros([src_logits.shape[0], src_logits.shape[1], src_logits.shape[2] + 1],
                                             dtype=src_logits.dtype, layout=src_logits.layout, device=src_logits.device)
         target_classes_onehot.scatter_(2, target_classes.unsqueeze(-1), 1)
+
+        sum_onehot = torch.sum(target_classes_onehot, dim=-1)
+        ex_indices = torch.nonzero(sum_onehot==0, as_tuple=False)
+        non_class_idx = torch.zeros((ex_indices.shape[0], 1), dtype=torch.int64)
+        ex_indices = torch.cat([ex_indices, non_class_idx], dim=1)
+        target_classes_onehot[ex_indices] = 1
 
         target_classes_onehot = target_classes_onehot[:,:,:-1]
         loss_ce = sigmoid_focal_loss(src_logits, target_classes_onehot, num_boxes, alpha=self.focal_alpha, gamma=self.focal_gamma) * src_logits.shape[1]
@@ -137,13 +142,17 @@ class SetCriterion(nn.Module):
         src_idx = torch.cat([src for (src, _) in indices])
         return batch_idx, src_idx
 
+    # def _get_exclude_src_permutation_idx(self, indices):
+    #     exclude_indices = []
+    #     for src, _ in indices:
+    #         tmp = torch.zeros((self.opt.num_queries,), dtype=torch.int64)
+    #         tmp[src] = 1
+    #         exclude_indices += torch.nonzero(tmp==0, as_tuple=False)
 
-    def _get_src_permutation_idx2(self, indices):
-        # permute predictions following indices
-        batch_idx = torch.cat([torch.full_like(src, i) for i, (src, _) in enumerate(indices)])
-        src_idx = torch.cat([src for (src, _) in indices])
-        src_idx2 = torch.cat([src for (_, src) in indices])
-        return (batch_idx, src_idx), src_idx2
+    #     # permute predictions following indices
+    #     batch_idx = torch.cat([torch.full_like(src, i) for i, (src, _) in enumerate(indices)])
+    #     src_idx = torch.cat([src for (src, _) in indices])
+    #     return batch_idx, src_idx
 
 
     def _get_tgt_permutation_idx(self, indices):
