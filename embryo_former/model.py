@@ -161,14 +161,12 @@ class EmbryoFormer(nn.Module):
             'proposals_mask': proposals_mask,
         }
         if eval_mode:
-            pass
-            # out, loss = self.parallel_prediction_full(dt, criterion, hs, init_reference, inter_references, others,
-            #                                           disable_iterative_refine)
+            out, loss = self.parallel_prediction_full(dt, criterion, hs, init_reference, inter_references, others,
+                                                      disable_iterative_refine)
         else:
             out, loss = self.parallel_prediction_matched(dt, criterion, hs, init_reference, inter_references, others,
                                                          disable_iterative_refine)
 
-        # out, loss = self.predict(dt, hs, init_reference, inter_references, others, criterion, disable_iterative_refine, eval_mode)
         return out, loss
 
 
@@ -176,6 +174,70 @@ class EmbryoFormer(nn.Module):
         hs_lid_pool = torch.max(hs_lid, dim=1, keepdim=False)[0]  # [bs, feat_dim]
         outputs_class0 = counter(hs_lid_pool)
         return outputs_class0
+
+
+def parallel_prediction_full(self, dt, criterion, hs, init_reference, inter_references, others,
+                                 disable_iterative_refine): 
+        outputs_classes = []
+        outputs_classes0 = []
+        outputs_coords = []
+        # outputs_cap_losses = []
+        # outputs_cap_probs = []
+        # outputs_cap_seqs = []
+
+        num_pred = hs.shape[0]
+        for l_id in range(hs.shape[0]):
+            if l_id == 0:
+                reference = init_reference
+            else:
+                reference = inter_references[l_id - 1]  # [decoder_layer, batch, query_num, ...]
+            hs_lid = hs[l_id]
+            outputs_class = self.class_head[l_id](hs_lid)  # [bs, num_query, N_class]
+            output_count = self.predict_event_num(self.count_head[l_id], hs_lid)
+            tmp = self.bbox_head[l_id](hs_lid)  # [bs, num_query, 4]
+
+            # # if self.opt.disable_mid_caption_heads and (l_id != hs.shape[0] - 1):
+            # if l_id != hs.shape[0] - 1:
+            #     cap_probs, seq = self.caption_prediction_eval(
+            #         self.caption_head[l_id], dt, hs_lid, reference, others, 'none')
+            # else:
+            #     cap_probs, seq = self.caption_prediction_eval(
+            #         self.caption_head[l_id], dt, hs_lid, reference, others, self.opt.caption_decoder_type) 
+
+            if disable_iterative_refine:
+                outputs_coord = reference
+            else:
+                reference = inverse_sigmoid(reference)
+                if reference.shape[-1] == 2:
+                    tmp += reference
+                else:
+                    assert reference.shape[-1] == 1
+                    tmp[..., :2] += reference
+                outputs_coord = tmp.sigmoid()  # [bs, num_query, 2]
+
+            outputs_classes.append(outputs_class)
+            outputs_classes0.append(output_count)
+            outputs_coords.append(outputs_coord)
+            # outputs_cap_probs.append(cap_probs)
+            # outputs_cap_seqs.append(seq)
+        outputs_class = torch.stack(outputs_classes)  # [decoder_layer, bs, num_query, N_class]
+        output_count = torch.stack(outputs_classes0)
+        outputs_coord = torch.stack(outputs_coords)  # [decoder_layer, bs, num_query, 4]
+
+        all_out = {'pred_logits': outputs_class,
+                   'pred_count': output_count,
+                   'pred_boxes': outputs_coord,
+                   # 'caption_probs': outputs_cap_probs,
+                   # 'seq': outputs_cap_seqs
+                   }
+        out = {k: v[-1] for k, v in all_out.items()}
+
+        if self.aux_loss:
+            ks, vs = list(zip(*(all_out.items())))
+            out['aux_outputs'] = [{ks[i]: vs[i][j] for i in range(len(ks))} for j in range(num_pred - 1)]
+
+        loss, last_indices, aux_indices = criterion(out, dt['video_target'])
+        return out, loss
 
 
     def parallel_prediction_matched(self, dt, criterion, hs, init_reference, inter_references, others,
