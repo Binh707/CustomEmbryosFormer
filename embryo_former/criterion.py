@@ -64,14 +64,14 @@ class SetCriterion(nn.Module):
         target_classes_onehot = torch.zeros([src_logits.shape[0], src_logits.shape[1], src_logits.shape[2] + 1],
                                             dtype=src_logits.dtype, layout=src_logits.layout, device=src_logits.device)
         target_classes_onehot.scatter_(2, target_classes.unsqueeze(-1), 1)
+        target_classes_onehot = target_classes_onehot[:,:,:-1]
 
         sum_onehot = torch.sum(target_classes_onehot, dim=-1)
         ex_indices = torch.nonzero(sum_onehot==0, as_tuple=False)
-        non_class_idx = torch.zeros((ex_indices.shape[0], 1), dtype=torch.int64)
-        ex_indices = torch.cat([ex_indices, non_class_idx], dim=1)
-        target_classes_onehot[ex_indices] = 1
-
-        target_classes_onehot = target_classes_onehot[:,:,:-1]
+        e_b_idx, e_q_idx = ex_indices[:,0], ex_indices[:,1]
+        e_c_idx = torch.zeros(e_b_idx.shape, dtype=torch.int64)
+        target_classes_onehot[e_b_idx, e_q_idx, e_c_idx] = 1.0
+        
         loss_ce = sigmoid_focal_loss(src_logits, target_classes_onehot, num_boxes, alpha=self.focal_alpha, gamma=self.focal_gamma) * src_logits.shape[1]
         losses = {'loss_ce': loss_ce}
 
