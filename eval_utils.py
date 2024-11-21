@@ -157,7 +157,7 @@ def reranking(p_src, alpha, temperature):
 
 
 def evaluate(model, criterion, postprocessors, loader, dvc_json_path, logger=None, score_threshold=0,
-             alpha=0.3, dvc_eval_version='2018', device='cuda', debug=False, skip_lang_eval=False):
+             alpha=0.3, dvc_eval_version='2018', device='cuda', debug=False):
     out_json = {'results': {},
                 'version': "VERSION 1.0",
                 'external_data': {'used:': True, 'details': None}}
@@ -165,25 +165,24 @@ def evaluate(model, criterion, postprocessors, loader, dvc_json_path, logger=Non
 
     loss_sum = OrderedDict()
     with torch.set_grad_enabled(False):
-        for dt in tqdm(loader, disable=opt.disable_tqdm):
-            # valid_keys = ["video_tensor", "video_length", "video_mask", "video_key"]
-            # dt = {key: value for key, value in dt.items() if key in valid_keys}
+        for dt in tqdm(loader):
             dt = {key: _.to(device) if isinstance(_, torch.Tensor) else _ for key, _ in dt.items()}
-            dt = collections.defaultdict(lambda: None, dt)
-
             dt['video_target'] = [
                     {key: _.to(device) if isinstance(_, torch.Tensor) else _ for key, _ in vid_info.items()} for vid_info in
-                    dt['video_target']]
-
-            output, loss = model(dt, criterion, opt.transformer_input_type, eval_mode=True)
+                    dt['video_target']
+                    ]
+            dt = collections.defaultdict(lambda: None, dt)
             orig_target_sizes = dt['video_length'][:, 1]
 
-            weight_dict = criterion.weight_dict
-            final_loss = sum(loss[k] * weight_dict[k] for k in loss.keys() if k in weight_dict)
+            # Model inference
+            output, loss = model(dt, criterion, eval_mode=True)
 
-            for loss_k, loss_v in loss.items():
-                loss_sum[loss_k] = loss_sum.get(loss_k, 0) + loss_v.item()
-            loss_sum['total_loss'] = loss_sum.get('total_loss', 0) + final_loss.item()
+            weight_dict = criterion.weight_dict
+            # final_loss = sum(loss[k] * weight_dict[k] for k in loss.keys() if k in weight_dict)
+
+            # for loss_k, loss_v in loss.items():
+            #     loss_sum[loss_k] = loss_sum.get(loss_k, 0) + loss_v.item()
+            # loss_sum['total_loss'] = loss_sum.get('total_loss', 0) + final_loss.item()
 
             results = postprocessors['bbox'](output, orig_target_sizes, loader)
 
@@ -210,8 +209,6 @@ def evaluate(model, criterion, postprocessors, loader, dvc_json_path, logger=Non
 
     save_dvc_json(out_json, dvc_json_path)
 
-    if skip_lang_eval:
-        return None, None
 
     for k in loss_sum.keys():
         loss_sum[k] = np.round(loss_sum[k] / (len(loader) + 1e-5), 3).item()
