@@ -290,7 +290,7 @@ class PostProcess(nn.Module):
         self.opt = opt
 
     @torch.no_grad()
-    def forward(self, outputs, target_sizes, loader):
+    def forward(self, outputs, target_sizes):
         """ Perform the computation
         Parameters:
             outputs: raw outputs of the model
