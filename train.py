@@ -30,6 +30,7 @@ sys.path.insert(0, pdvc_dir)
 from embryo_former.model import build # Import model
 from metrics.meter import AverageMeter
 
+from eval_utils import evaluate
 from data.dataset import PropSeqDataset, collate_fn
 from misc.detr_utils import box_ops
 from utils.writer import print_metrics_frames

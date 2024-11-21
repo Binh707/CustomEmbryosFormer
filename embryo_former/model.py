@@ -181,9 +181,6 @@ class EmbryoFormer(nn.Module):
         outputs_classes = []
         outputs_classes0 = []
         outputs_coords = []
-        # outputs_cap_losses = []
-        # outputs_cap_probs = []
-        # outputs_cap_seqs = []
 
         num_pred = hs.shape[0]
         for l_id in range(hs.shape[0]):
@@ -195,14 +192,6 @@ class EmbryoFormer(nn.Module):
             outputs_class = self.class_head[l_id](hs_lid)  # [bs, num_query, N_class]
             output_count = self.predict_event_num(self.count_head[l_id], hs_lid)
             tmp = self.bbox_head[l_id](hs_lid)  # [bs, num_query, 4]
-
-            # # if self.opt.disable_mid_caption_heads and (l_id != hs.shape[0] - 1):
-            # if l_id != hs.shape[0] - 1:
-            #     cap_probs, seq = self.caption_prediction_eval(
-            #         self.caption_head[l_id], dt, hs_lid, reference, others, 'none')
-            # else:
-            #     cap_probs, seq = self.caption_prediction_eval(
-            #         self.caption_head[l_id], dt, hs_lid, reference, others, self.opt.caption_decoder_type) 
 
             if disable_iterative_refine:
                 outputs_coord = reference
@@ -218,8 +207,7 @@ class EmbryoFormer(nn.Module):
             outputs_classes.append(outputs_class)
             outputs_classes0.append(output_count)
             outputs_coords.append(outputs_coord)
-            # outputs_cap_probs.append(cap_probs)
-            # outputs_cap_seqs.append(seq)
+
         outputs_class = torch.stack(outputs_classes)  # [decoder_layer, bs, num_query, N_class]
         output_count = torch.stack(outputs_classes0)
         outputs_coord = torch.stack(outputs_coords)  # [decoder_layer, bs, num_query, 4]
@@ -240,15 +228,12 @@ class EmbryoFormer(nn.Module):
         return out, loss
 
 
+
     def parallel_prediction_matched(self, dt, criterion, hs, init_reference, inter_references, others,
                                     disable_iterative_refine):
         outputs_classes = []
         outputs_counts = []
         outputs_coords = []
-        # outputs_cap_costs = []
-        # outputs_cap_losses = []
-        # outputs_cap_probs = []
-        # outputs_cap_seqs = []
 
         num_pred = hs.shape[0]
         for l_id in range(num_pred):
@@ -259,8 +244,6 @@ class EmbryoFormer(nn.Module):
             outputs_count = self.predict_event_num(self.count_head[l_id], hs_lid)
             tmp = self.bbox_head[l_id](hs_lid)  # [bs, num_query, 2]
 
-            # cost_caption, loss_caption, cap_probs, seq = self.caption_prediction(self.caption_head[l_id], dt, hs_lid,
-            #                                                                      reference, others, 'none')
             if disable_iterative_refine:
                 outputs_coord = reference
             else:
@@ -275,22 +258,15 @@ class EmbryoFormer(nn.Module):
             outputs_classes.append(outputs_class)
             outputs_counts.append(outputs_count)
             outputs_coords.append(outputs_coord)
-            # outputs_cap_losses.append(cap_loss)
-            # outputs_cap_probs.append(cap_probs)
-            # outputs_cap_seqs.append(seq)
 
         outputs_class = torch.stack(outputs_classes)  # [decoder_layer, bs, num_query, N_class]
         outputs_count = torch.stack(outputs_counts)
         outputs_coord = torch.stack(outputs_coords)  # [decoder_layer, bs, num_query, 4]
-        # outputs_cap_loss = torch.stack(outputs_cap_losses)
 
         all_out = {
             'pred_logits': outputs_class,
             'pred_count': outputs_count,
             'pred_boxes': outputs_coord,
-            # 'caption_losses': outputs_cap_loss,
-            # 'caption_probs': outputs_cap_probs,
-            # 'seq': outputs_cap_seqs
             }
         out = {k: v[-1] for k, v in all_out.items()}
 
@@ -298,42 +274,56 @@ class EmbryoFormer(nn.Module):
             ks, vs = list(zip(*(all_out.items())))
             out['aux_outputs'] = [{ks[i]: vs[i][j] for i in range(len(ks))} for j in range(num_pred - 1)]
             loss, last_indices, aux_indices = criterion(out, dt['video_target'])
-
-            # for l_id in range(hs.shape[0]):
-            #     hs_lid = hs[l_id]
-            #     reference = init_reference if l_id == 0 else inter_references[l_id - 1]
-            #     indices = last_indices[0] if l_id == hs.shape[0] - 1 else aux_indices[l_id][0]
-            #     cap_loss, cap_probs, seq = self.caption_prediction(self.caption_head[l_id], dt, hs_lid, reference,
-            #                                                        others, self.opt.caption_decoder_type, indices)
-
-            #     l_dict = {'loss_caption': cap_loss}
-            #     if l_id != hs.shape[0] - 1:
-            #         l_dict = {k + f'_{l_id}': v for k, v in l_dict.items()}
-            #     loss.update(l_dict)
-
-            # out.update({'caption_probs': cap_probs, 'seq': seq})
         else:
             loss, last_indices = criterion(out, dt['video_target'])
 
-            # l_id = hs.shape[0] - 1
-            # reference = inter_references[l_id - 1]  # [decoder_layer, batch, query_num, ...]
-            # hs_lid = hs[l_id]
-            # indices = last_indices[0]
-            # cap_loss, cap_probs, seq = self.caption_prediction(self.caption_head[l_id], dt, hs_lid, reference,
-            #                                                    others, self.opt.caption_decoder_type, indices)
-            # l_dict = {'loss_caption': cap_loss}
-            # loss.update(l_dict)
-
-            # out.pop('caption_losses')
-            # out.pop('caption_costs')
-            # out.update({'caption_probs': cap_probs, 'seq': seq})
-
         return out, loss
+
 
 #=========================================================================================================
 
 
 
+class PostProcess(nn.Module):
+    def __init__(self, opt):
+        super().__init__()
+        self.opt = opt
+
+    @torch.no_grad()
+    def forward(self, outputs, target_sizes, loader):
+        """ Perform the computation
+        Parameters:
+            outputs: raw outputs of the model
+            target_sizes: tensor of dimension [batch_size] containing the size of each video of the batch
+        """
+        out_logits, out_bbox = outputs['pred_logits'], outputs['pred_boxes']
+        N, N_q, N_class = out_logits.shape
+        assert len(out_logits) == len(target_sizes)
+
+        prob = out_logits.sigmoid()
+        topk_values, topk_indexes = torch.topk(prob.view(out_logits.shape[0], -1), N_q, dim=1)
+        scores = topk_values
+        topk_boxes = topk_indexes // out_logits.shape[2]
+        labels = topk_indexes % out_logits.shape[2]
+        boxes = box_ops.box_cl_to_xy(out_bbox)
+        raw_boxes = copy.deepcopy(boxes)
+        boxes[boxes < 0] = 0
+        boxes[boxes > 1] = 1
+        boxes = torch.gather(boxes, 1, topk_boxes.unsqueeze(-1).repeat(1, 1, 2))
+
+        scale_fct = torch.stack([target_sizes, target_sizes], dim=1)
+        boxes = boxes * scale_fct[:, None, :]
+        eseq_lens = outputs['pred_count'].argmax(dim=-1).clamp(min=1)
+
+        results = [
+            {'scores': s, 'labels': l, 'boxes': b, 'raw_boxes': b, 'captions': c, 'caption_scores': cs, 'query_id': qid,
+             'vid_duration': ts, 'pred_seq_len': sl} for s, l, b, rb, qid, ts, sl in
+            zip(scores, labels, boxes, raw_boxes, topk_boxes, target_sizes, eseq_lens)]
+        return results
+
+
+
+#=========================================================================================================
 
 
 
@@ -366,6 +356,8 @@ def build(args):
 
     criterion = SetCriterion(args.num_classes, matcher, weight_dict, losses, focal_alpha=args.focal_alpha,
                              focal_gamma=args.focal_gamma, opt=args)
+
     criterion.to(device)
-    return model, criterion
+    postprocessors = {'bbox': PostProcess(args)}
+    return model, criterion, postprocessors
 
