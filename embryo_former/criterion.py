@@ -72,7 +72,7 @@ class SetCriterion(nn.Module):
         e_c_idx = torch.zeros(e_b_idx.shape, dtype=torch.int64)
         target_classes_onehot[e_b_idx, e_q_idx, e_c_idx] = 1.0
         
-        loss_ce = sigmoid_focal_loss(src_logits, target_classes_onehot, num_boxes, alpha=self.focal_alpha, gamma=self.focal_gamma) * src_logits.shape[1]
+        loss_ce = softmax_focal_loss(src_logits, target_classes_onehot, num_boxes, alpha=self.focal_alpha, gamma=self.focal_gamma) * src_logits.shape[1]
         losses = {'loss_ce': loss_ce}
 
         pred_count = outputs['pred_count']
@@ -238,7 +238,7 @@ def cross_entropy_with_gaussian_mask(inputs, targets, opt, weight):
 
 
 
-def sigmoid_focal_loss(inputs, targets, num_boxes, alpha: float = 0.25, gamma: float = 2):
+def softmax_focal_loss(inputs, targets, num_boxes, alpha: float = 0.25, gamma: float = 2):
     """
     Loss used in RetinaNet for dense detection: https://arxiv.org/abs/1708.02002.
     Args:
