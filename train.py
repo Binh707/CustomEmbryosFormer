@@ -131,10 +131,7 @@ def main(opt, config_path: str):
 
     best_refine_acc, best_refine_f1 = -1, -1
     logger.info(f'--------------- START TRAINING ---------------')
-    for e in range(opt.epoch):
-        for metric in center_metrics:
-            refine_frame_metrics[metric].reset() 
-            
+    for e in range(opt.epoch):    
         for loss in loss_manager:
             loss_manager[loss].reset()
 
@@ -170,8 +167,16 @@ def main(opt, config_path: str):
 
         # -------------------- VALIDATION --------------------
         model.eval()
-        eval_score, eval_loss = evaluate(model, criterion, postprocessors, val_loader, result_json_path, 
-                                        logger=logger, alpha=opt.ec_alpha, device=opt.device, debug=opt.debug)
+        criterion.training=False
+
+        for loss in loss_manager:
+            loss_manager[loss].reset()
+
+        evaluate(model, criterion, postprocessors, val_loader, loss_manager,
+                logger=logger, alpha=opt.ec_alpha, device=opt.device)
+
+        lr_scheduler.step()
+
         # criterion.training=False
         # for metric in refine_frame_metrics:
         #     refine_frame_metrics[metric].reset() 

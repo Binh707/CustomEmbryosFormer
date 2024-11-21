@@ -299,8 +299,9 @@ class PostProcess(nn.Module):
         out_logits, out_bbox = outputs['pred_logits'], outputs['pred_boxes']
         N, N_q, N_class = out_logits.shape
         assert len(out_logits) == len(target_sizes)
+        # prob = out_logits.sigmoid()
+        prob = F.softmax(out_logits, dim=-1)
 
-        prob = out_logits.sigmoid()
         topk_values, topk_indexes = torch.topk(prob.view(out_logits.shape[0], -1), N_q, dim=1)
         scores = topk_values
         topk_boxes = topk_indexes // out_logits.shape[2]
