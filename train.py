@@ -173,7 +173,7 @@ def main(opt, config_path: str):
             loss_manager[loss].reset()
 
         evaluate(model, criterion, postprocessors, val_loader, loss_manager,
-                logger=logger, alpha=opt.ec_alpha, device=opt.device)
+                logger=logger, device=opt.device)
 
         lr_scheduler.step()
 

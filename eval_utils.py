@@ -173,23 +173,23 @@ def evaluate(model, criterion, postprocessors, loader, loss_manager,
             for k in loss:
                 loss_manager[k].update(loss[k].item())
 
-            results = postprocessors['bbox'](output, orig_target_sizes)
+            # results = postprocessors['bbox'](output, orig_target_sizes)
 
-            batch_json = {}
-            for idx, video_name in enumerate(dt['video_key']):
-                segment = results[idx]['boxes'].cpu().numpy()
-                raw_boxes = results[idx]['raw_boxes'].cpu().numpy()
-                # pdb.set_trace()
-                batch_json[video_name] = [
-                    {
-                        "timestamp": segment[pid].tolist(),
-                        "raw_box": raw_boxes[pid].tolist(),
-                        "proposal_score": results[idx]['scores'][pid].item(),
-                        'query_id': results[idx]['query_id'][pid].item(),
-                        'vid_duration': results[idx]['vid_duration'].item(),
-                        'pred_event_count': results[idx]['pred_seq_len'].item(),
-                    }
-                    for pid in range(len(segment)) if results[idx]['scores'][pid].item() > score_threshold]
+            # batch_json = {}
+            # for idx, video_name in enumerate(dt['video_key']):
+            #     segment = results[idx]['boxes'].cpu().numpy()
+            #     raw_boxes = results[idx]['raw_boxes'].cpu().numpy()
+            #     # pdb.set_trace()
+            #     batch_json[video_name] = [
+            #         {
+            #             "timestamp": segment[pid].tolist(),
+            #             "raw_box": raw_boxes[pid].tolist(),
+            #             "proposal_score": results[idx]['scores'][pid].item(),
+            #             'query_id': results[idx]['query_id'][pid].item(),
+            #             'vid_duration': results[idx]['vid_duration'].item(),
+            #             'pred_event_count': results[idx]['pred_seq_len'].item(),
+            #         }
+            #         for pid in range(len(segment)) if results[idx]['scores'][pid].item() > score_threshold]
 
         print_str = '\nVALIDATION:'
         logger.info(print_str)
