@@ -332,7 +332,7 @@ class PostProcess(nn.Module):
         widths = widths * target_sizes[:, None]
         # widths = F.softmax(widths, dim=-1) * target_sizes[:, None]
 
-        return torch.gather(query_cls_preds, dim=-1, index=indices), widths
+        return torch.gather(query_cls_preds, dim=-1, index=indices), widths.to(torch.int64)
 
 
 #=========================================================================================================
