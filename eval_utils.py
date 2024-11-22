@@ -185,9 +185,9 @@ def evaluate(model, criterion, postprocessors, loader, loss_manager,
                 stg_end_idx = torch.cumsum(query_width)
                 stg_end_idx[-1] = seq_len
                 stg_beg_idx = torch.cat(torch.tensor[0], query_width)[:-1]
-                stage_cls = torch.zeros([len(frame_label)])
+                pred_frame = torch.zeros([len(frame_label)])
                 for q_i, (beg, end) in enumerate(zip(stg_beg_idx, stg_end_idx)):
-                    stage_cls[beg:end] = query_class[q_i]
+                    pred_frame[beg:end] = query_class[q_i]
 
 
             # batch_json = {}
