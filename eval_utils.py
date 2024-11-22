@@ -182,10 +182,11 @@ def evaluate(model, criterion, postprocessors, loader, loss_manager,
                 seq_len = orig_target_sizes[b_i]
                 frame_label = frame_labels[b_i]
 
+                pred_frame = torch.zeros([len(frame_label)], dtype=torch.int64)
                 stg_end_idx = torch.cumsum(query_width)
                 stg_end_idx[-1] = seq_len
-                stg_beg_idx = torch.cat(torch.tensor[0], query_width)[:-1]
-                pred_frame = torch.zeros([len(frame_label)])
+                stg_beg_idx = torch.cat([torch.tensor([0]), query_width])[:-1]
+                pred_frame = torch.zeros([len(frame_label)], dtype=torch.int64)
                 for q_i, (beg, end) in enumerate(zip(stg_beg_idx, stg_end_idx)):
                     pred_frame[beg:end] = query_class[q_i]
 
