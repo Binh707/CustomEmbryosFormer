@@ -14,13 +14,13 @@ from os.path import dirname, abspath
 
 pdvc_dir = dirname(abspath(__file__))
 sys.path.insert(0, pdvc_dir)
-sys.path.insert(0, os.path.join(pdvc_dir, 'densevid_eval3'))
-sys.path.insert(0, os.path.join(pdvc_dir, 'densevid_eval3/SODA'))
+# sys.path.insert(0, os.path.join(pdvc_dir, 'densevid_eval3'))
+# sys.path.insert(0, os.path.join(pdvc_dir, 'densevid_eval3/SODA'))
 
 
-from densevid_eval3.eval_soda import eval_soda
-from densevid_eval3.eval_para import eval_para
-from densevid_eval3.eval_dvc import eval_dvc
+# from densevid_eval3.eval_soda import eval_soda
+# from densevid_eval3.eval_para import eval_para
+# from densevid_eval3.eval_dvc import eval_dvc
 
 # def calculate_avg_proposal_num(json_path):
 #     data = json.load(open(json_path))
