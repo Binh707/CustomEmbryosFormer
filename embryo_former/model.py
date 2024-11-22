@@ -299,29 +299,34 @@ class PostProcess(nn.Module):
         out_logits, out_bbox = outputs['pred_logits'], outputs['pred_boxes']
         N, N_q, N_class = out_logits.shape
         assert len(out_logits) == len(target_sizes)
-        # prob = out_logits.sigmoid()
-        prob = F.softmax(out_logits, dim=-1)
 
-        topk_values, topk_indexes = torch.topk(prob.view(out_logits.shape[0], -1), N_q, dim=1)
-        scores = topk_values
-        topk_boxes = topk_indexes // out_logits.shape[2]
-        labels = topk_indexes % out_logits.shape[2]
-        boxes = box_ops.box_cl_to_xy(out_bbox)
-        raw_boxes = copy.deepcopy(boxes)
-        boxes[boxes < 0] = 0
-        boxes[boxes > 1] = 1
-        boxes = torch.gather(boxes, 1, topk_boxes.unsqueeze(-1).repeat(1, 1, 2))
+        # prob = out_logits.sigmoid()        prob = F.softmax(out_logits, dim=-1)
 
-        scale_fct = torch.stack([target_sizes, target_sizes], dim=1)
-        boxes = boxes * scale_fct[:, None, :]
-        eseq_lens = outputs['pred_count'].argmax(dim=-1).clamp(min=1)
+        # topk_values, topk_indexes = torch.topk(prob.view(out_logits.shape[0], -1), N_q, dim=1)
+        # scores = topk_values
+        # topk_boxes = topk_indexes // out_logits.shape[2]
+        # labels = topk_indexes % out_logits.shape[2]
+        # boxes = box_ops.box_cl_to_xy(out_bbox)
+        # raw_boxes = copy.deepcopy(boxes)
+        # boxes[boxes < 0] = 0
+        # boxes[boxes > 1] = 1
+        # boxes = torch.gather(boxes, 1, topk_boxes.unsqueeze(-1).repeat(1, 1, 2))
+        # scale_fct = torch.stack([target_sizes, target_sizes], dim=1)
+        # boxes = boxes * scale_fct[:, None, :]
+        # eseq_lens = outputs['pred_count'].argmax(dim=-1).clamp(min=1)
 
-        results = [
-            {'scores': s, 'labels': l, 'boxes': b, 'raw_boxes': b, 'captions': c, 'caption_scores': cs, 'query_id': qid,
-             'vid_duration': ts, 'pred_seq_len': sl} for s, l, b, rb, qid, ts, sl in
-            zip(scores, labels, boxes, raw_boxes, topk_boxes, target_sizes, eseq_lens)]
-        return results
+        query_cls_preds = torch.argmax(prob, dim=-1, keepdim=False)
 
+        ex_query_indices = torch.nonzero(query_cls_preds==0, as_tuple=False)
+        b_idx, q_idx = ex_query_indices[:,0], ex_query_indices[:,1]
+
+        out_bbox[b_idx, q_idx, :] = torch.tensor([0.0, 0.0])
+        centers, widths = out_bbox[:,:,0], out_bbox[:,:,1]
+        centers, indices = torch.sort(centers, dim=-1, descending=False)
+        widths = torch.gather(widths, dim=-1, index=indices)
+        widths = F.softmax(widths, dim=-1) * target_sizes[:, None]
+
+        return torch.gather(query_cls_preds, dim=-1, index=indices), widths
 
 
 #=========================================================================================================

@@ -173,7 +173,7 @@ def evaluate(model, criterion, postprocessors, loader, loss_manager,
             for k in loss:
                 loss_manager[k].update(loss[k].item())
 
-            # results = postprocessors['bbox'](output, orig_target_sizes)
+            query_classes, query_widths = postprocessors['bbox'](output, orig_target_sizes)
 
             # batch_json = {}
             # for idx, video_name in enumerate(dt['video_key']):
