@@ -325,7 +325,12 @@ class PostProcess(nn.Module):
         centers, widths = out_bbox[:,:,0], out_bbox[:,:,1]
         centers, indices = torch.sort(centers, dim=-1, descending=False)
         widths = torch.gather(widths, dim=-1, index=indices)
-        widths = F.softmax(widths, dim=-1) * target_sizes[:, None]
+
+        abs_w = torch.abs(widths)
+        abs_sum = torch.sum(abs_w, dim=-1, keepdim=True)
+        widths = abs_w / (abs_sum + 1e-8)
+        widths = widths * target_sizes[:, None]
+        # widths = F.softmax(widths, dim=-1) * target_sizes[:, None]
 
         return torch.gather(query_cls_preds, dim=-1, index=indices), widths
 

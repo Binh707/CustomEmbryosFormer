@@ -166,7 +166,9 @@ def evaluate(model, criterion, postprocessors, loader, loss_manager,
                     dt['video_target']
                     ]
             dt = collections.defaultdict(lambda: None, dt)
+            frame_labels = [sample['frame_labels'] for sample in dt['video_target']]
             orig_target_sizes = dt['video_length'][:, 1]
+            batch_size = len(orig_target_sizes)
 
             # Model inference
             output, loss = model(dt, criterion, eval_mode=True)
@@ -174,6 +176,19 @@ def evaluate(model, criterion, postprocessors, loader, loss_manager,
                 loss_manager[k].update(loss[k].item())
 
             query_classes, query_widths = postprocessors['bbox'](output, orig_target_sizes)
+            for b_i in range(len(batch_size)):
+                query_class = query_classes[b_i]
+                query_width = query_widths[b_i]
+                seq_len = orig_target_sizes[b_i]
+                frame_label = frame_labels[b_i]
+
+                stg_end_idx = torch.cumsum(query_width)
+                stg_end_idx[-1] = seq_len
+                stg_beg_idx = torch.cat(torch.tensor[0], query_width)[:-1]
+                stage_cls = torch.zeros([len(frame_label)])
+                for q_i, (beg, end) in enumerate(zip(stg_beg_idx, stg_end_idx)):
+                    stage_cls[beg:end] = query_class[q_i]
+
 
             # batch_json = {}
             # for idx, video_name in enumerate(dt['video_key']):
