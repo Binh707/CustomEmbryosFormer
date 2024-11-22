@@ -176,7 +176,7 @@ def evaluate(model, criterion, postprocessors, loader, loss_manager,
                 loss_manager[k].update(loss[k].item())
 
             query_classes, query_widths = postprocessors['bbox'](output, orig_target_sizes)
-            for b_i in range(len(batch_size)):
+            for b_i in range(batch_size):
                 query_class = query_classes[b_i]
                 query_width = query_widths[b_i]
                 seq_len = orig_target_sizes[b_i]
