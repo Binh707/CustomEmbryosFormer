@@ -174,7 +174,7 @@ class PropSeqDataset(StageDataset):
         assert max(action_labels) < self.opt.num_classes
 
         fil_fr_ids = list(range(duration))
-        frame_labels = [frame_labels[i] for i in fil_fr_ids]
+        frame_labels = [frame_labels[i] + 1 for i in fil_fr_ids]
         frame_paths = [frame_paths[i] for i in fil_fr_ids]
         feats = np.stack([feats[i] for i in fil_fr_ids], axis=0)
 
