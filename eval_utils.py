@@ -55,7 +55,7 @@ def evaluate(model, criterion, postprocessors, loader, loss_manager, frame_metri
                 seq_len = orig_target_sizes[b_i]
                 frame_label = frame_labels[b_i]
 
-                pred_frame = torch.zeros([len(frame_label)], dtype=torch.int64)
+                pred_frame = torch.zeros([len(frame_label)], dtype=torch.int64).to(opt.device)
                 stg_end_idx = torch.cumsum(query_width, dim=-1)
                 stg_end_idx[-1] = seq_len
                 stg_beg_idx = torch.cat([torch.tensor([0]).to(opt.device), stg_end_idx])[:-1]
