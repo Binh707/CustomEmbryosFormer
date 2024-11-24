@@ -58,7 +58,7 @@ def evaluate(model, criterion, postprocessors, loader, loss_manager, frame_metri
                 pred_frame = torch.zeros([len(frame_label)], dtype=torch.int64)
                 stg_end_idx = torch.cumsum(query_width, dim=-1)
                 stg_end_idx[-1] = seq_len
-                stg_beg_idx = torch.cat([torch.tensor([0]), stg_end_idx])[:-1]
+                stg_beg_idx = torch.cat([torch.tensor([0]).to(opt.device), stg_end_idx])[:-1]
                 for q_i, (beg, end) in enumerate(zip(stg_beg_idx, stg_end_idx)):
                     pred_frame[beg:end] = query_class[q_i]
 
