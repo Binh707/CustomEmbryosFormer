@@ -63,7 +63,7 @@ def evaluate(model, criterion, postprocessors, loader, loss_manager, frame_metri
                     pred_frame[beg:end] = query_class[q_i]
 
                 for metric in frame_metrics:
-                    frame_metrics[metric].update(pred_frame, frame_label, is_prob=True)
+                    frame_metrics[metric].update(pred_frame, frame_label, is_prob=False)
 
 
         print_str = '\nVALIDATION:'
