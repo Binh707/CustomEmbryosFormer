@@ -321,7 +321,7 @@ class PostProcess(nn.Module):
         ex_query_indices = torch.nonzero(query_cls_preds==0, as_tuple=False)
         b_idx, q_idx = ex_query_indices[:,0], ex_query_indices[:,1]
 
-        out_bbox[b_idx, q_idx, :] = torch.tensor([0.0, 0.0])
+        out_bbox[b_idx, q_idx, :] = torch.tensor([0.0, 0.0]).to(opt.device)
         centers, widths = out_bbox[:,:,0], out_bbox[:,:,1]
         centers, indices = torch.sort(centers, dim=-1, descending=False)
         widths = torch.gather(widths, dim=-1, index=indices)
