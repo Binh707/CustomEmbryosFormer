@@ -63,7 +63,7 @@ def evaluate(model, criterion, postprocessors, loader, loss_manager, frame_metri
                     pred_frame[beg:end] = query_class[q_i]
 
                 for metric in frame_metrics:
-                    refine_frame_metrics[metric].update(pred_frame, frame_label, is_prob=True)
+                    frame_metrics[metric].update(pred_frame, frame_label, is_prob=True)
 
 
         print_str = '\nVALIDATION:'
@@ -71,7 +71,7 @@ def evaluate(model, criterion, postprocessors, loader, loss_manager, frame_metri
 
         print_metrics_frames(
             metric_dict={
-                'Refine': refine_frame_metrics, 
+                'Refine': frame_metrics, 
             }, 
             n_classes = opt.num_classes,
             logger = logger
