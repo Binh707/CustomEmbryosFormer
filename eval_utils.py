@@ -11,6 +11,7 @@ import json
 from collections import OrderedDict
 from tqdm import tqdm
 from os.path import dirname, abspath
+from utils.writer import print_metrics_frames
 
 pdvc_dir = dirname(abspath(__file__))
 sys.path.insert(0, pdvc_dir)
@@ -22,139 +23,11 @@ sys.path.insert(0, pdvc_dir)
 # from densevid_eval3.eval_para import eval_para
 # from densevid_eval3.eval_dvc import eval_dvc
 
-# def calculate_avg_proposal_num(json_path):
-#     data = json.load(open(json_path))
-#     return np.array([len(v) for v in data['results'].values()]).mean()
-
-# def convert_tapjson_to_dvcjson(tap_json, dvc_json):
-#     data = json.load(open(tap_json, 'r'))
-#     data['version'] = "VERSION 1.0"
-#     data['external_data'] = {'used:': True, 'details': "C3D pretrained on Sports-1M"}
-
-#     all_names = list(data['results'].keys())
-#     for video_name in all_names:
-#         for p_info in data['results'][video_name]:
-#             p_info['timestamp'] = p_info.pop('segment')
-#             p_info['proposal_score'] = p_info.pop('score')
-#             p_info['sentence_score'] = p_info.pop('sentence_score', 0)
-#         data['results']["v_" + video_name] = data['results'].pop(video_name)
-#     json.dump(data, open(dvc_json, 'w'))
-
-
-# def convert_dvcjson_to_tapjson(dvc_json, tap_json):
-#     data = json.load(open(dvc_json, 'r'))['results']
-#     out = {}
-#     out['version'] = "VERSION 1.0"
-#     out['external_data'] = {'used:': True, 'details': "GT proposals"}
-#     out['results'] = {}
-
-#     all_names = list(data.keys())
-#     for video_name in all_names:
-#         video_info = []
-#         event_num = len(data[video_name])
-#         timestamps = [data[video_name][i]['timestamp'] for i in range(event_num)]
-#         sentences = [data[video_name][i]['sentence'] for i in range(event_num)]
-#         for i, timestamp in enumerate(timestamps):
-#             score = data[video_name][i].get('proposal_score', 1.0)
-#             video_info.append({'segment': timestamp, 'score': score, 'sentence': sentences[i], 'sentence_score': data[video_name][i].get('sentence_score', 0)})
-#         out['results'][video_name[2:]] = video_info
-#     json.dump(out, open(tap_json, 'w'))
-
-
-# def convert_gtjson_to_tapjson(gt_json, tap_json):
-#     data = json.load(open(gt_json, 'r'))
-#     out = {}
-#     out['version'] = "VERSION 1.0"
-#     out['external_data'] = {'used:': True, 'details': "GT proposals"}
-#     out['results'] = {}
-
-#     all_names = list(data.keys())
-#     for video_name in all_names:
-#         video_info = []
-#         timestamps = data[video_name]['timestamps']
-#         sentences = data[video_name]['sentences']
-#         for i, timestamp in enumerate(timestamps):
-#             video_info.append({'segment': timestamp, 'score': 1., 'sentence': sentences[i]})
-#         out['results'][video_name[2:]] = video_info
-#     with open(tap_json, 'w') as f:
-#         json.dump(out, f)
-
-
-# def get_topn_from_dvcjson(dvc_json, out_json, top_n=3, ranking_key='proposal_score', score_thres=-1e8):
-#     data = json.load(open(dvc_json, 'r'))['results']
-#     out = {}
-#     out['version'] = "VERSION 1.0"
-#     out['external_data'] = {'used:': True, 'details': "GT proposals"}
-#     out['results'] = {}
-#     all_names = list(data.keys())
-#     num = 0
-#     bad_vid = 0
-#     for video_name in all_names:
-#         info = data[video_name]
-#         new_info = sorted(info, key=lambda x: x[ranking_key], reverse=True)
-#         new_info = [p for p in new_info if p[ranking_key] > score_thres]
-#         new_info = new_info[:top_n]
-#         out['results'][video_name] = new_info
-#         num += len(new_info)
-#         if len(new_info) == 0:
-#             bad_vid += 1
-#             out['results'].pop(video_name)
-#     print('average proosal number: {}'.format(num / len(all_names)))
-#     print('bad videos number: {}'.format(bad_vid))
-#     print('good videos number: {}'.format(len(out['results'])))
-#     with open(out_json, 'w') as f:
-#         json.dump(out, f)
-
-
-# def eval_metrics(dvc_filename, gt_filenames, para_gt_filenames, alpha=0.3, ranking_key='proposal_score', rerank=False, dvc_eval_version='2018'):
-#     score = collections.defaultdict(lambda: -1)
-
-#     # top_n = 3
-#     # top_n_filename = dvc_filename + '.top{}.json'.format(top_n)
-#     # get_topn_from_dvcjson(dvc_filename, top_n_filename, top_n=top_n, ranking_key=ranking_key)
-#     # dvc_score = eval_dvc(json_path=top_n_filename, reference=gt_filenames)
-#     # dvc_score = {k: sum(v) / len(v) for k, v in dvc_score.items()}
-#     # dvc_score.update(eval_soda(top_n_filename, ref_list=gt_filenames))
-#     # dvc_score.update(eval_para(top_n_filename, referneces=para_gt_filenames))
-#     # for key in dvc_score.keys():
-#     #     score[key] = dvc_score[key]
-
-#     if rerank:
-#         dvc_filename = reranking(dvc_filename, alpha=alpha, temperature=2.0)
-#     dvc_score = eval_dvc(json_path=dvc_filename, reference=gt_filenames, version=dvc_eval_version)
-#     dvc_score = {k: sum(v) / len(v) for k, v in dvc_score.items()}
-#     dvc_score.update(eval_soda(dvc_filename, ref_list=gt_filenames))
-#     dvc_score.update(eval_para(dvc_filename, referneces=para_gt_filenames))
-#     score.update(dvc_score)
-#     return score
-
-
-
-# def reranking(p_src, alpha, temperature):
-#     print('alpha: {}, temp: {}'.format(alpha, temperature))
-#     d = json.load(open(p_src))
-#     d_items = list(d['results'].items())
-#     for k,v in d_items:
-#         if True:
-#             sent_scores = [p['sentence_score'] / (float(len(p['sentence'].split()))**(temperature) + 1e-5) for p in v]
-#             prop_score = [p['proposal_score'] for p in v]
-#             joint_score = alpha * (np.array(sent_scores)) + (np.array(prop_score))
-#         for i,p in enumerate(v):
-#             p['joint_score'] = joint_score[i]
-#         v = sorted(v, key=lambda x: x['joint_score'], reverse=True)
-#         topN = v[0]['pred_event_count']
-#         v = v[:topN]
-#         v = sorted(v, key=lambda x: x['timestamp'])
-#         d['results'][k] = v
-#     save_path = p_src+'_rerank_alpha{}_temp{}.json'.format(alpha, temperature)
-#     save_dvc_json(d, save_path)
-#     return save_path
-
 
 #=====================================================================================================
 
 
-def evaluate(model, criterion, postprocessors, loader, loss_manager,
+def evaluate(model, criterion, postprocessors, loader, loss_manager, frame_metrics,
             logger=None, score_threshold=0, alpha=0.3, device='cuda'):
 
     opt = loader.dataset.opt
@@ -189,25 +62,21 @@ def evaluate(model, criterion, postprocessors, loader, loss_manager,
                 for q_i, (beg, end) in enumerate(zip(stg_beg_idx, stg_end_idx)):
                     pred_frame[beg:end] = query_class[q_i]
 
+                for metric in frame_metrics:
+                    refine_frame_metrics[metric].update(pred_frame, frame_label, is_prob=True)
 
-            # batch_json = {}
-            # for idx, video_name in enumerate(dt['video_key']):
-            #     segment = results[idx]['boxes'].cpu().numpy()
-            #     raw_boxes = results[idx]['raw_boxes'].cpu().numpy()
-            #     # pdb.set_trace()
-            #     batch_json[video_name] = [
-            #         {
-            #             "timestamp": segment[pid].tolist(),
-            #             "raw_box": raw_boxes[pid].tolist(),
-            #             "proposal_score": results[idx]['scores'][pid].item(),
-            #             'query_id': results[idx]['query_id'][pid].item(),
-            #             'vid_duration': results[idx]['vid_duration'].item(),
-            #             'pred_event_count': results[idx]['pred_seq_len'].item(),
-            #         }
-            #         for pid in range(len(segment)) if results[idx]['scores'][pid].item() > score_threshold]
 
         print_str = '\nVALIDATION:'
         logger.info(print_str)
+
+        print_metrics_frames(
+            metric_dict={
+                'Refine': refine_frame_metrics, 
+            }, 
+            n_classes = opt.num_classes,
+            logger = logger
+        )
+
         loss_str = [f'{loss}: {loss_manager[loss].avg:.4f}' for loss in loss_manager if criterion.weight_dict[loss] > 0]
         loss_str = ', '.join(loss_str)
         logger.info(loss_str)

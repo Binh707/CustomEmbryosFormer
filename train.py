@@ -172,7 +172,11 @@ def main(opt, config_path: str):
         for loss in loss_manager:
             loss_manager[loss].reset()
 
-        evaluate(model, criterion, postprocessors, val_loader, loss_manager,
+        for metric in refine_frame_metrics:
+            refine_frame_metrics[metric].reset() 
+
+        evaluate(model, criterion, postprocessors, val_loader, 
+                loss_manager, refine_frame_metrics,
                 logger=logger, device=opt.device)
 
         lr_scheduler.step()
