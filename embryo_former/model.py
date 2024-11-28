@@ -140,6 +140,9 @@ class EmbryoFormer(nn.Module):
         memory = self.transformer.forward_encoder(src_flatten, temporal_shapes, level_start_index, 
                                                 valid_ratios, lvl_pos_embed_flatten, mask_flatten)
 
+        srcs_lens = [src.shape[2] for src in srcs]
+        splits = torch.split(memory, srcs_lens, dim=1)
+        frame_embedds = splits[0]
     
         disable_iterative_refine = False
         query_embed = self.query_embed.weight
@@ -154,6 +157,7 @@ class EmbryoFormer(nn.Module):
 
         others = {
             'memory': memory,
+            'frame_embeddings': frame_embedds,
             'mask_flatten': mask_flatten,
             'spatial_shapes': temporal_shapes,
             'level_start_index': level_start_index,
@@ -236,6 +240,7 @@ class EmbryoFormer(nn.Module):
         outputs_classes = []
         outputs_counts = []
         outputs_coords = []
+        outputs_maps = []
 
         num_pred = hs.shape[0]
         for l_id in range(num_pred):
@@ -245,6 +250,7 @@ class EmbryoFormer(nn.Module):
             outputs_class = self.class_head[l_id](hs_lid)  # [bs, num_query, N_class]
             outputs_count = self.predict_event_num(self.count_head[l_id], hs_lid)
             tmp = self.bbox_head[l_id](hs_lid)  # [bs, num_query, 2]
+            outputs_map = torch.einsum('bsf,bqf->bsq', others['frame_embeddings'], hs_lid)
 
             if disable_iterative_refine:
                 outputs_coord = reference
@@ -260,15 +266,18 @@ class EmbryoFormer(nn.Module):
             outputs_classes.append(outputs_class)
             outputs_counts.append(outputs_count)
             outputs_coords.append(outputs_coord)
+            outputs_maps.append(outputs_map)
 
         outputs_class = torch.stack(outputs_classes)  # [decoder_layer, bs, num_query, N_class]
         outputs_count = torch.stack(outputs_counts)
-        outputs_coord = torch.stack(outputs_coords)  # [decoder_layer, bs, num_query, 4]
+        outputs_coord = torch.stack(outputs_coords)  # [decoder_layer, bs, num_query, 2]
+        outputs_map = torch.stack(outputs_maps)
 
         all_out = {
             'pred_logits': outputs_class,
             'pred_count': outputs_count,
             'pred_boxes': outputs_coord,
+            'pred_maps': outputs_map,
             }
         out = {k: v[-1] for k, v in all_out.items()}
 
