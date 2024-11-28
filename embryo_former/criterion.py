@@ -112,7 +112,8 @@ class SetCriterion(nn.Module):
         indices, many2one_indices = indices
         N = len(indices[-1][0])
         assert 'pred_boxes' in outputs
-        idx, idx2 = self._get_src_permutation_idx2(indices)
+        # idx, idx2 = self._get_src_permutation_idx2(indices)
+        idx = self._get_src_permutation_idx(indices)
         src_boxes = outputs['pred_boxes'][idx]
         target_boxes = torch.cat([t['boxes'][i] for t, (_, i) in zip(targets, indices)], dim=0)
         loss_bbox = F.l1_loss(src_boxes, target_boxes, reduction='none')
@@ -136,18 +137,57 @@ class SetCriterion(nn.Module):
         return losses
 
 
+
+    def loss_masks(self, masks_queries_logits, targets, indices, num_boxes):
+        """Compute the losses related to the masks using sigmoid_cross_entropy_loss and dice loss."""
+
+        B, L, Qn = masks_queries_logits.shape
+
+        # get pred maps
+        indices, many2one_indices = indices
+        assert 'pred_logits' in outputs
+        idx = self._get_src_permutation_idx(indices)
+        pred_masks = masks_queries_logits[idx]
+
+        # create gt maps
+
+        # list_lens = [t['frame_labels'].shape[0] for t in targets]
+        # frame_gts = []
+        # for t in targets:
+        #     t_gts = t['frame_labels']
+        #     t_len = t['frame_labels'].shape[0]
+        #     pad_labels = torch.tensor([self.num_classes]*(L - t_len)).to(t['frame_labels'].device)
+        #     t_gts = torch.cat([t['frame_labels'], pad_labels])
+        #     frame_gts.append(t_gts)
+        # frame_gts = torch.cat(frame_gts)
+        # print(frame_gts.shape)
+
+        # No need to upsample predictions as we are using normalized coordinates
+        pred_masks = pred_masks[:, None]
+        target_masks = target_masks[:, None]
+
+        losses = {
+            "loss_mask": sigmoid_cross_entropy_loss(point_logits, point_labels, num_boxes),
+            "loss_dice": dice_loss(point_logits, point_labels, num_boxes),
+        }
+
+        return losses
+
+
+
+
     def _get_src_permutation_idx(self, indices):
         # permute predictions following indices
         batch_idx = torch.cat([torch.full_like(src, i) for i, (src, _) in enumerate(indices)])
         src_idx = torch.cat([src for (src, _) in indices])
         return batch_idx, src_idx
 
-    def _get_src_permutation_idx2(self, indices):
-        # permute predictions following indices
-        batch_idx = torch.cat([torch.full_like(src, i) for i, (src, _) in enumerate(indices)])
-        src_idx = torch.cat([src for (src, _) in indices])
-        src_idx2 = torch.cat([src for (_, src) in indices])
-        return (batch_idx, src_idx), src_idx2
+    # def _get_src_permutation_idx2(self, indices):
+    #     # permute predictions following indices
+    #     batch_idx = torch.cat([torch.full_like(src, i) for i, (src, _) in enumerate(indices)])
+    #     src_idx = torch.cat([src for (src, _) in indices])
+    #     src_idx2 = torch.cat([src for (_, src) in indices])
+    #     return (batch_idx, src_idx), src_idx2
 
 
     def _get_tgt_permutation_idx(self, indices):
