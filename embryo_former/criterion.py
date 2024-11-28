@@ -277,3 +277,53 @@ def regression_loss(inputs, targets, opt, weight):
     elif opt.regression_loss_type == 'l2':
         loss = nn.MSELoss()(inputs[:, 0], max_id.float())
     return loss
+
+
+
+def sigmoid_cross_entropy_loss(inputs: torch.Tensor, labels: torch.Tensor, num_masks: int) -> torch.Tensor:
+    r"""
+    Args:
+        inputs (`torch.Tensor`):
+            A float tensor of arbitrary shape.
+        labels (`torch.Tensor`):
+            A tensor with the same shape as inputs. Stores the binary classification labels for each element in inputs
+            (0 for the negative class and 1 for the positive class).
+
+    Returns:
+        loss (`torch.Tensor`): The computed loss.
+    """
+    criterion = nn.BCEWithLogitsLoss(reduction="none")
+    cross_entropy_loss = criterion(inputs, labels)
+
+    loss = cross_entropy_loss.mean(1).sum() / num_masks
+    return loss
+
+
+def dice_loss(inputs: Tensor, labels: Tensor, num_masks: int) -> Tensor:
+    r"""
+    Compute the DICE loss, similar to generalized IOU for masks as follows:
+
+    $$ \mathcal{L}_{\text{dice}(x, y) = 1 - \frac{2 * x \cap y }{x \cup y + 1}} $$
+
+    In practice, since `labels` is a binary mask, (only 0s and 1s), dice can be computed as follow
+
+    $$ \mathcal{L}_{\text{dice}(x, y) = 1 - \frac{2 * x * y }{x + y + 1}} $$
+
+    Args:
+        inputs (`torch.Tensor`):
+            A tensor representing a mask.
+        labels (`torch.Tensor`):
+            A tensor with the same shape as inputs. Stores the binary classification labels for each element in inputs
+            (0 for the negative class and 1 for the positive class).
+        num_masks (`int`):
+            The number of masks present in the current batch, used for normalization.
+
+    Returns:
+        `torch.Tensor`: The computed loss.
+    """
+    probs = inputs.sigmoid().flatten(1)
+    numerator = 2 * (probs * labels).sum(-1)
+    denominator = probs.sum(-1) + labels.sum(-1)
+    loss = 1 - (numerator + 1) / (denominator + 1)
+    loss = loss.sum() / num_masks
+    return loss
