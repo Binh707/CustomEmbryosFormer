@@ -223,6 +223,8 @@ class EmbryoFormer(nn.Module):
         if self.aux_loss:
             ks, vs = list(zip(*(all_out.items())))
             out['aux_outputs'] = [{ks[i]: vs[i][j] for i in range(len(ks))} for j in range(num_pred - 1)]
+        else:
+            loss, last_indices = criterion(out, dt['video_target'])
 
         loss, last_indices, aux_indices = criterion(out, dt['video_target'])
         return out, loss
