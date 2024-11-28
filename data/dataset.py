@@ -145,17 +145,6 @@ class PropSeqDataset(StageDataset):
         pass 
 
 
-    def monotoric2free(self, action_labels, gt_timestamps, frame_labels):
-        free_gt_timestamps = []
-        free_action_labels = []
-        for timestamp in gt_timestamps:
-            start_pos, end_pos = timestamp
-            if end_pos > start_pos:
-                free_gt_timestamps.append(timestamp)
-                free_action_labels.append(frame_labels[(start_pos + end_pos)//2] + 1)
-        return free_action_labels, free_gt_timestamps
-
-
     def __getitem__(self, idx):
         key = str(self.keys[idx])
         feats = self.load_feats(key) # [L, d]
@@ -166,7 +155,6 @@ class PropSeqDataset(StageDataset):
         frame_labels = self.anno[key]['frame_labels'] # len = L
         frame_paths = self.anno[key]['frame_paths'] # len = L
 
-        action_labels, gt_timestamps = self.monotoric2free(action_labels, gt_timestamps, frame_labels)
         random_ids = np.random.choice(list(range(len(gt_timestamps))), len(gt_timestamps), replace=False)
         gt_timestamps = [gt_timestamps[_] for _ in range(len(gt_timestamps)) if _ in random_ids]
         action_labels = [action_labels[_] for _ in range(len(action_labels)) if _ in random_ids]
