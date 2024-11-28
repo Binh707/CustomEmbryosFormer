@@ -191,7 +191,7 @@ class EmbryoFormer(nn.Module):
             hs_lid = hs[l_id]
             outputs_class = self.class_head[l_id](hs_lid)  # [bs, num_query, N_class]
             output_count = self.predict_event_num(self.count_head[l_id], hs_lid)
-            tmp = self.bbox_head[l_id](hs_lid)  # [bs, num_query, 4]
+            tmp = self.bbox_head[l_id](hs_lid)  # [bs, num_query, 2]
 
             if disable_iterative_refine:
                 outputs_coord = reference
@@ -210,7 +210,7 @@ class EmbryoFormer(nn.Module):
 
         outputs_class = torch.stack(outputs_classes)  # [decoder_layer, bs, num_query, N_class]
         output_count = torch.stack(outputs_classes0)
-        outputs_coord = torch.stack(outputs_coords)  # [decoder_layer, bs, num_query, 4]
+        outputs_coord = torch.stack(outputs_coords)  # [decoder_layer, bs, num_query, 2]
 
         all_out = {'pred_logits': outputs_class,
                    'pred_count': output_count,
