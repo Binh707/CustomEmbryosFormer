@@ -339,7 +339,7 @@ def sigmoid_cross_entropy_loss(inputs: torch.Tensor, labels: torch.Tensor, num_m
     return loss
 
 
-def dice_loss(inputs: Tensor, labels: Tensor, num_masks: int) -> Tensor:
+def dice_loss(inputs: torch.Tensor, labels: torch.Tensor, num_masks: int) -> torch.Tensor:
     r"""
     Compute the DICE loss, similar to generalized IOU for masks as follows:
 
