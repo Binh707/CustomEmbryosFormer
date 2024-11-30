@@ -162,15 +162,15 @@ class SetCriterion(nn.Module):
         # target_masks = torch.cat[frame_gts[i] == stage_classes[i] for ]
 
         # No need to upsample predictions as we are using normalized coordinates
-        pred_masks = pred_masks[:, None]
-        target_masks = target_masks[:, None]
+        # pred_masks = pred_masks[:, None]
+        # target_masks = target_masks[:, None]
 
-        losses = {
-            "loss_mask": sigmoid_cross_entropy_loss(point_logits, point_labels, num_boxes),
-            "loss_dice": dice_loss(point_logits, point_labels, num_boxes),
-        }
+        # losses = {
+        #     "loss_mask": sigmoid_cross_entropy_loss(point_logits, point_labels, num_boxes),
+        #     "loss_dice": dice_loss(point_logits, point_labels, num_boxes),
+        # }
 
-        return losses
+        return 0
 
 
 
@@ -201,6 +201,7 @@ class SetCriterion(nn.Module):
             'labels': self.loss_labels,
             'cardinality': self.loss_cardinality,
             'boxes': self.loss_boxes,
+            'masks': self.loss_masks,
         }
         assert loss in loss_map, f'do you really want to compute {loss} loss?'
         return loss_map[loss](outputs, targets, indices, num_boxes, **kwargs)
