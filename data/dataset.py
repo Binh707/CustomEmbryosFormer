@@ -47,7 +47,7 @@ def collate_fn(batch):
         video_mask[idx, :video_len] = True
 
 
-    gt_boxes_mask = (gt_boxes_tensor != 0).sum(2) > 0 
+    # gt_boxes_mask = (gt_boxes_tensor != 0).sum(2) > 0 
 
     target = [
         {
