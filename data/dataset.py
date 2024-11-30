@@ -31,12 +31,11 @@ def collate_fn(batch):
 
     max_timestamp_num = max(len(x) for x in gt_timestamps_list)
 
-    # lnt_boxes_tensor = torch.zeros(batch_size, max_proposal_num, 4)
     gt_boxes_tensor = torch.zeros(batch_size, max_timestamp_num, 2)
     gt_boxWidth_tensor = torch.zeros(batch_size, max_timestamp_num)
 
-    total_caption_idx = 0
-    total_proposal_idx = 0
+    # total_caption_idx = 0 
+    # total_proposal_idx = 0
 
     for idx in range(batch_size):
         video_len = feature_list[idx].shape[0]
@@ -50,13 +49,8 @@ def collate_fn(batch):
         video_length[idx, 2] = gt_proposal_length
         video_mask[idx, :video_len] = True
 
-        box_info_tensor = torch.tensor(
-            [[(ts[1] + ts[0]) / (2 * raw_duration[idx]), (ts[1] - ts[0]+1) / raw_duration[idx]] for ts in gt_raw_timestamp[idx]]).float()
-        gt_boxes_tensor[idx, :gt_proposal_length] = box_info_tensor
-        gt_boxWidth_tensor[idx, :gt_proposal_length] = torch.tensor([(ts[1] - ts[0+1]) / raw_duration[idx] for ts in gt_raw_timestamp[idx]])
-        total_caption_idx += gt_proposal_length
 
-    gt_boxes_mask = (gt_boxes_tensor != 0).sum(2) > 0
+    gt_boxes_mask = (gt_boxes_tensor != 0).sum(2) > 0 
 
     target = [
         {
@@ -81,16 +75,7 @@ def collate_fn(batch):
                 "target": target,
                 "duration": raw_duration,
                 "pos_weight": video_pos_weight,
-            },
-        "gt":
-            {
-                "featstamps": gt_timestamps,  # list,        (gt_all_event_num, 2)
-                "timestamp": list(gt_raw_timestamp),  # list (len: video_num) of tensors (shape: (gt_event_num, 2))
-                # "gather_idx": caption_gather_idx,  # tensor,      (gt_all_event_num)
-                "boxes": gt_boxes_tensor,
-                "boxes_mask": gt_boxes_mask,
-                "boxes_width": gt_boxWidth_tensor
-            },
+            }
     }
     dt = {k1 + '_' + k2: v2 for k1, v1 in dt.items() for k2, v2 in v1.items()}
     
