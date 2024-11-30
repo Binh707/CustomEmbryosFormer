@@ -31,11 +31,8 @@ def collate_fn(batch):
 
     max_timestamp_num = max(len(x) for x in gt_timestamps_list)
 
-    gt_boxes_tensor = torch.zeros(batch_size, max_timestamp_num, 2)
-    gt_boxWidth_tensor = torch.zeros(batch_size, max_timestamp_num)
-
-    # total_caption_idx = 0 
-    # total_proposal_idx = 0
+    # gt_boxes_tensor = torch.zeros(batch_size, max_timestamp_num, 2)
+    # gt_boxWidth_tensor = torch.zeros(batch_size, max_timestamp_num)
 
     for idx in range(batch_size):
         video_len = feature_list[idx].shape[0]
@@ -61,7 +58,6 @@ def collate_fn(batch):
             'frame_labels': torch.tensor(frame_labels[i]),
             'masks': None,
             'image_id': vid,
-            'boxes_width': torch.tensor([(ts[1] - ts[0]+1) / raw_duration[i] for ts in gt_raw_timestamp[i]]),
         } for i, vid in enumerate(list(key))
     ] 
 
