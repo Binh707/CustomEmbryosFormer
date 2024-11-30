@@ -141,11 +141,14 @@ class SetCriterion(nn.Module):
     def loss_masks(self, outputs, targets, indices, num_boxes):
         """Compute the losses related to the masks using sigmoid_cross_entropy_loss and dice loss."""
 
-        masks_queries_logits = outputs['pred_maps']
-        B, L, Qn = masks_queries_logits.shape
+        masks_queries_logits = outputs['pred_maps'].permute(0, 2, 1)
+        B, Qn, L = masks_queries_logits.shape
 
         indices, many2one_indices = indices
         assert 'pred_logits' in outputs
+
+        masks_queries_logits.permute(0, 2, 1)
+
         idx = self._get_src_permutation_idx(indices)
         pred_masks = masks_queries_logits[idx]
 
