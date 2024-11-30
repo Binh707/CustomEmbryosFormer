@@ -147,13 +147,13 @@ class SetCriterion(nn.Module):
         indices, many2one_indices = indices
         assert 'pred_logits' in outputs
 
-        masks_queries_logits.permute(0, 2, 1)
-
+        # get pred masks
         idx = self._get_src_permutation_idx(indices)
         pred_masks = masks_queries_logits[idx]
 
-        stage_classes = torch.cat([t["labels"][J] for t, (_, J) in zip(targets, indices)]) #[bs, ]
-
+        # get target masks
+        stage_classes = torch.cat([t["labels"][J] for t, (_, J) in zip(targets, indices)])
+        stage_lens = [len(t["labels"]) for t in targets]
         frame_gts = []
         for t in targets:
             t_gts = t['frame_labels']
@@ -161,19 +161,11 @@ class SetCriterion(nn.Module):
             pad_labels = torch.tensor([self.num_classes]*(L - t_len)).to(t['frame_labels'].device)
             t_gts = torch.cat([t['frame_labels'], pad_labels])
             frame_gts.append(t_gts)
-        frame_gts = torch.cat(frame_gts) # [bs, seq len]
-
-        # target_masks = torch.cat[frame_gts[i] == stage_classes[i] for ]
-
-        # No need to upsample predictions as we are using normalized coordinates
-        # pred_masks = pred_masks[:, None]
-        # target_masks = target_masks[:, None]
-
-        # losses = {
-        #     "loss_mask": sigmoid_cross_entropy_loss(point_logits, point_labels, num_boxes),
-        #     "loss_dice": dice_loss(point_logits, point_labels, num_boxes),
-        # }
-
+        expand_frame_gts = []
+        for ft, sgl in zip(frame_gts, stage_lens):
+            expand_frame_gts += [ft] * sgl
+        expand_frame_gts = torch.stack(expand_frame_gts)
+        target_masks = (expand_frame_gts == stage_classes.unsqueeze(-1)).to(torch.float32)
         return 0
 
 
