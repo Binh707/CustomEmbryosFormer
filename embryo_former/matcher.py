@@ -76,10 +76,28 @@ class HungarianMatcher(nn.Module):
             # out_prob = outputs["pred_logits"].flatten(0, 1).sigmoid()
             out_prob = F.softmax(outputs["pred_logits"].flatten(0, 1), dim=1)
             out_bbox = outputs["pred_boxes"].flatten(0, 1)
+            out_mask = torch.sigmoid(outputs['pred_maps'].permute(0, 2, 1)).flatten(0, 1)
+            _, _, mask_len = out_mask.shape
 
             # Also concat the target labels and boxes
             tgt_ids = torch.cat([v["labels"] for v in targets])
             tgt_bbox = torch.cat([v["boxes"] for v in targets])
+
+            tgt_lens = [len(t["labels"]) for t in targets]
+            frame_gts = []
+            for t in targets:
+                t_gts = t['frame_labels']
+                t_len = t['frame_labels'].shape[0]
+                pad_labels = torch.tensor([0]*(mask_len - t_len)).to(t['frame_labels'].device)
+                t_gts = torch.cat([t['frame_labels'], pad_labels])
+                frame_gts.append(t_gts)
+            expand_frame_gts = []
+            for ft, l in zip(frame_gts, tgt_lens):
+                expand_frame_gts += [ft] * l
+            expand_frame_gts = torch.stack(expand_frame_gts)
+            tgt_mask = (expand_frame_gts == stage_classes.unsqueeze(-1)).to(torch.float32)
+
+
 
             # Compute the classification cost.
             # alpha = 0.25
@@ -104,7 +122,6 @@ class HungarianMatcher(nn.Module):
             costs = {'cost_bbox': cost_bbox,
                      'cost_class': cost_class,
                      'cost_giou': cost_giou,
-                     # 'cost_caption': cost_caption,
                      'out_bbox': out_bbox[:, 0::2]}
 
             if verbose:
