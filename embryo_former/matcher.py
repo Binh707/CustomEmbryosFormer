@@ -111,10 +111,13 @@ class HungarianMatcher(nn.Module):
             cost_bbox = torch.cdist(out_bbox, tgt_bbox, p=1)
 
             # Compute the giou cost betwen boxes
-            cost_giou = -generalized_box_iou(box_cl_to_xy(out_bbox),
-                                             box_cl_to_xy(tgt_bbox))
+            cost_giou = -generalized_box_iou(box_cl_to_xy(out_bbox), box_cl_to_xy(tgt_bbox))
 
-            # cost_caption = outputs['caption_costs'].flatten(0, 1)
+            # compute the cross entropy loss between each mask pairs
+            cost_mask = pair_wise_sigmoid_cross_entropy_loss(out_mask, tgt_mask)
+
+            # Compute the dice loss betwen each mask pairs
+            cost_dice = pair_wise_dice_loss(out_mask, tgt_mask)
 
             # Final cost matrix
             C = self.cost_bbox * cost_bbox + self.cost_class * cost_class + self.cost_giou * cost_giou
@@ -161,6 +164,54 @@ class HungarianMatcher(nn.Module):
 
             return indices, rl_indices
 
+
+def pair_wise_dice_loss(inputs: torch.Tensor, labels: torch.Tensor) -> torch.Tensor:
+    """
+    A pair wise version of the dice loss, see `dice_loss` for usage.
+
+    Args:
+        inputs (`torch.Tensor`):
+            A tensor representing a mask
+        labels (`torch.Tensor`):
+            A tensor with the same shape as inputs. Stores the binary classification labels for each element in inputs
+            (0 for the negative class and 1 for the positive class).
+
+    Returns:
+        `torch.Tensor`: The computed loss between each pairs.
+    """
+    inputs = inputs.sigmoid().flatten(1)
+    numerator = 2 * torch.matmul(inputs, labels.T)
+    # using broadcasting to get a [num_queries, NUM_CLASSES] matrix
+    denominator = inputs.sum(-1)[:, None] + labels.sum(-1)[None, :]
+    loss = 1 - (numerator + 1) / (denominator + 1)
+    return loss
+
+
+def pair_wise_sigmoid_cross_entropy_loss(inputs: torch.Tensor, labels: torch.Tensor) -> torch.Tensor:
+    r"""
+    A pair wise version of the cross entropy loss, see `sigmoid_cross_entropy_loss` for usage.
+
+    Args:
+        inputs (`torch.Tensor`):
+            A tensor representing a mask.
+        labels (`torch.Tensor`):
+            A tensor with the same shape as inputs. Stores the binary classification labels for each element in inputs
+            (0 for the negative class and 1 for the positive class).
+
+    Returns:
+        loss (`torch.Tensor`): The computed loss between each pairs.
+    """
+
+    height_and_width = inputs.shape[1]
+
+    criterion = nn.BCEWithLogitsLoss(reduction="none")
+    cross_entropy_loss_pos = criterion(inputs, torch.ones_like(inputs))
+    cross_entropy_loss_neg = criterion(inputs, torch.zeros_like(inputs))
+
+    loss_pos = torch.matmul(cross_entropy_loss_pos / height_and_width, labels.T)
+    loss_neg = torch.matmul(cross_entropy_loss_neg / height_and_width, (1 - labels).T)
+    loss = loss_pos + loss_neg
+    return loss
 
 def build_matcher(args):
     return HungarianMatcher(cost_class=args.set_cost_class,
