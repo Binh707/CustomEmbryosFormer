@@ -166,7 +166,11 @@ class SetCriterion(nn.Module):
             expand_frame_gts += [ft] * sgl
         expand_frame_gts = torch.stack(expand_frame_gts)
         target_masks = (expand_frame_gts == stage_classes.unsqueeze(-1)).to(torch.float32)
-        return 0
+
+        losses = {}
+        losses['loss_mask_dice'] = dice_loss(pred_masks, target_masks, num_boxes)
+        losses['loss_mask_ce'] = sigmoid_cross_entropy_loss(pred_masks, target_masks, num_boxes)
+        return losses
 
 
 
