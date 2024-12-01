@@ -77,7 +77,7 @@ class HungarianMatcher(nn.Module):
             out_prob = F.softmax(outputs["pred_logits"].flatten(0, 1), dim=1)
             out_bbox = outputs["pred_boxes"].flatten(0, 1)
             out_mask = torch.sigmoid(outputs['pred_maps'].permute(0, 2, 1)).flatten(0, 1)
-            _, _, mask_len = out_mask.shape
+            _, mask_len = out_mask.shape
 
             # Also concat the target labels and boxes
             tgt_ids = torch.cat([v["labels"] for v in targets])
@@ -95,7 +95,7 @@ class HungarianMatcher(nn.Module):
             for ft, l in zip(frame_gts, tgt_lens):
                 expand_frame_gts += [ft] * l
             expand_frame_gts = torch.stack(expand_frame_gts)
-            tgt_mask = (expand_frame_gts == stage_classes.unsqueeze(-1)).to(torch.float32)
+            tgt_mask = (expand_frame_gts == tgt_ids.unsqueeze(-1)).to(torch.float32)
 
 
 
