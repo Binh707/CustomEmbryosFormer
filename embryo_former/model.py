@@ -164,12 +164,15 @@ class EmbryoFormer(nn.Module):
             'valid_ratios': valid_ratios,
             'proposals_mask': proposals_mask,
         }
-        if eval_mode:
-            out, loss = self.parallel_prediction_full(dt, criterion, hs, init_reference, inter_references, others,
-                                                      disable_iterative_refine)
-        else:
-            out, loss = self.parallel_prediction_matched(dt, criterion, hs, init_reference, inter_references, others,
+
+        out, loss = self.parallel_prediction_matched(dt, criterion, hs, init_reference, inter_references, others,
                                                          disable_iterative_refine)
+        # if eval_mode:
+        #     out, loss = self.parallel_prediction_full(dt, criterion, hs, init_reference, inter_references, others,
+        #                                               disable_iterative_refine)
+        # else:
+        #     out, loss = self.parallel_prediction_matched(dt, criterion, hs, init_reference, inter_references, others,
+        #                                                  disable_iterative_refine)
 
         return out, loss
 

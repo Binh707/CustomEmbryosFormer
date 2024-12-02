@@ -123,8 +123,7 @@ class HungarianMatcher(nn.Module):
             cost_dice = pair_wise_dice_loss(out_mask, tgt_mask)
 
             # Final cost matrix
-            C = self.cost_bbox * cost_bbox + self.cost_class * cost_class + self.cost_giou * cost_giou 
-                + self.cost_dice * cost_dice + self.cost_mask * cost_mask
+            C = self.cost_bbox*cost_bbox + self.cost_class*cost_class + self.cost_giou*cost_giou + self.cost_dice*cost_dice + self.cost_mask*cost_mask
 
             costs = {'cost_bbox': cost_bbox,
                      'cost_class': cost_class,
