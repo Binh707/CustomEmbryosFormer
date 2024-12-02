@@ -79,7 +79,7 @@ class HungarianMatcher(nn.Module):
             # out_prob = outputs["pred_logits"].flatten(0, 1).sigmoid()
             out_prob = F.softmax(outputs["pred_logits"].flatten(0, 1), dim=1)
             out_bbox = outputs["pred_boxes"].flatten(0, 1)
-            out_mask = torch.sigmoid(outputs['pred_maps'].permute(0, 2, 1)).flatten(0, 1)
+            out_mask = torch.sigmoid(outputs['pred_masks'].permute(0, 2, 1)).flatten(0, 1)
             _, mask_len = out_mask.shape
 
             # Also concat the target labels and boxes
