@@ -30,6 +30,8 @@ class HungarianMatcher(nn.Module):
                  cost_class: float = 1,
                  cost_bbox: float = 1,
                  cost_giou: float = 1,
+                 cost_dice: float = 1,
+                 cost_mask: float = 1,
                  cost_alpha = 0.25,
                  cost_gamma = 2):
         """Creates the matcher
@@ -43,7 +45,8 @@ class HungarianMatcher(nn.Module):
         self.cost_class = cost_class
         self.cost_bbox = cost_bbox
         self.cost_giou = cost_giou
-        # self.cost_caption = cost_caption
+        self.cost_dice = cost_dice
+        self.cost_mask = cost_mask
         self.cost_alpha = cost_alpha
         self.cost_gamma = cost_gamma
 
@@ -120,7 +123,8 @@ class HungarianMatcher(nn.Module):
             cost_dice = pair_wise_dice_loss(out_mask, tgt_mask)
 
             # Final cost matrix
-            C = self.cost_bbox * cost_bbox + self.cost_class * cost_class + self.cost_giou * cost_giou
+            C = self.cost_bbox * cost_bbox + self.cost_class * cost_class + self.cost_giou * cost_giou 
+                + self.cost_dice * cost_dice + self.cost_mask * cost_mask
 
             costs = {'cost_bbox': cost_bbox,
                      'cost_class': cost_class,
@@ -217,6 +221,8 @@ def build_matcher(args):
     return HungarianMatcher(cost_class=args.set_cost_class,
                             cost_bbox=args.set_cost_bbox,
                             cost_giou=args.set_cost_giou,
+                            cost_dice=args.set_cost_dice,
+                            cost_mask=args.set_cost_mask,
                             cost_alpha = args.cost_alpha,
                             cost_gamma = args.cost_gamma
                             )
