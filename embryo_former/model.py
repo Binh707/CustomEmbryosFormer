@@ -239,7 +239,7 @@ class EmbryoFormer(nn.Module):
         outputs_classes = []
         outputs_counts = []
         outputs_coords = []
-        outputs_maps = []
+        outputs_masks = []
 
         num_pred = hs.shape[0]
         for l_id in range(num_pred):
@@ -249,7 +249,7 @@ class EmbryoFormer(nn.Module):
             outputs_class = self.class_head[l_id](hs_lid)  # [bs, num_query, N_class]
             outputs_count = self.predict_event_num(self.count_head[l_id], hs_lid)
             tmp = self.bbox_head[l_id](hs_lid)  # [bs, num_query, 2]
-            outputs_map = torch.einsum('bsf,bqf->bsq', others['frame_embeddings'], hs_lid)
+            outputs_mask = torch.einsum('bsf,bqf->bsq', others['frame_embeddings'], hs_lid)
 
             if disable_iterative_refine:
                 outputs_coord = reference
@@ -265,18 +265,18 @@ class EmbryoFormer(nn.Module):
             outputs_classes.append(outputs_class)
             outputs_counts.append(outputs_count)
             outputs_coords.append(outputs_coord)
-            outputs_maps.append(outputs_map)
+            outputs_masks.append(outputs_mask)
 
         outputs_class = torch.stack(outputs_classes)  # [decoder_layer, bs, num_query, N_class]
         outputs_count = torch.stack(outputs_counts)
         outputs_coord = torch.stack(outputs_coords)  # [decoder_layer, bs, num_query, 2]
-        outputs_map = torch.stack(outputs_maps)
+        outputs_mask = torch.stack(outputs_masks)
 
         all_out = {
             'pred_logits': outputs_class,
             'pred_count': outputs_count,
             'pred_boxes': outputs_coord,
-            'pred_maps': outputs_map,
+            'pred_masks': outputs_mask,
             }
         out = {k: v[-1] for k, v in all_out.items()}
 
