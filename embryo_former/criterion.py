@@ -140,9 +140,9 @@ class SetCriterion(nn.Module):
 
     def loss_masks(self, outputs, targets, indices, num_boxes):
         """Compute the losses related to the masks using sigmoid_cross_entropy_loss and dice loss."""
-        assert 'pred_maps' in outputs
+        assert 'pred_masks' in outputs
 
-        masks_queries_logits = torch.sigmoid(outputs['pred_maps'].permute(0, 2, 1))
+        masks_queries_logits = torch.sigmoid(outputs['pred_masks'].permute(0, 2, 1))
         B, Qn, L = masks_queries_logits.shape
 
         indices, many2one_indices = indices
